@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Feature Controller feature.
+ */
+
+include_once 'f_feature_controller.features.inc';
