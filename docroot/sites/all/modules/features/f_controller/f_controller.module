@@ -4,4 +4,4 @@
  * Code for the Feature Controller feature.
  */
 
-include_once 'f_feature_controller.features.inc';
+include_once 'f_controller.features.inc';

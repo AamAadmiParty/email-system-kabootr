@@ -7,7 +7,7 @@
 /**
  * Implements hook_strongarm().
  */
-function f_feature_controller_strongarm() {
+function f_controller_strongarm() {
   $export = array();
 
   $strongarm = new stdClass();
