@@ -27,13 +27,22 @@ function simplenews_user_list_form_alter(&$form, &$form_state, $form_id) {
     }
     // Create user filter based on User account field
     // The id's of form user filter has been set to it's user field ID.
-    $users_filters = simplenews_user_list_create_user_filters($newsletter_tid);
-    if ($users_filters != NULL) {
-      foreach ($users_filters as $f_key => $f_value) {
-        $form['user_filter']['kabootr_user_filter_' . $f_key] = $f_value;
+    $master_newsletter_tid = variable_get('master_simplenews_category', '');
+    if ($newsletter_tid != $master_newsletter_tid) {
+      $users_filters = simplenews_user_list_create_user_filters($newsletter_tid);
+      if ($users_filters != NULL) {
+        foreach ($users_filters as $f_key => $f_value) {
+          $form['user_filter']['kabootr_user_filter_' . $f_key] = $f_value;
+        }
+        // Create user list based on selected user filters
+        $form['#submit'][] = 'simplenews_user_list_admin_category_form_submit';
       }
-      // Create user list based on selected user filters
-      $form['#submit'][] = 'simplenews_user_list_admin_category_form_submit';
+    }
+    else {
+      $message = t("@newsletter is master Category. so no change in subscription list", array(
+          '@newsletter' => taxonomy_term_load($master_newsletter_tid)->name
+      ));
+      drupal_set_message($message, 'warning');
     }
   }
 }
