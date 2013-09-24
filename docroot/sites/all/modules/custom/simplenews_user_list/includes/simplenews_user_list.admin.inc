@@ -24,7 +24,7 @@ function simplenews_user_list_create_user_filters($newsletter_tid = NULL) {
   // Provide user field label, type and it's ids
   // The id's of user field is important id, This id only identifies User filter
   // We have used as key in creating user filter form widget
-  $user_field_array = field_info_instances('user')['user'];
+  $user_field_array = field_info_instances('user');
   $user_field_instances = $user_field_array['user'];
   $user_field_instances_no = count($user_field_instances);
   
