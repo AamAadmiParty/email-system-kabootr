@@ -28,12 +28,13 @@ function simplenews_user_list_form_alter(&$form, &$form_state, $form_id) {
     // Create user filter based on User account field
     // The id's of form user filter has been set to it's user field ID.
     $users_filters = simplenews_user_list_create_user_filters($newsletter_tid);
-    foreach ($users_filters as $f_key => $f_value) {
-      $form['user_filter']['kabootr_user_filter_' . $f_key] = $f_value;
+    if ($users_filters != NULL) {
+      foreach ($users_filters as $f_key => $f_value) {
+        $form['user_filter']['kabootr_user_filter_' . $f_key] = $f_value;
+      }
+      // Create user list based on selected user filters
+      $form['#submit'][] = 'simplenews_user_list_admin_category_form_submit';
     }
-    
-    // Create user list based on selected user filters
-    $form['#submit'][] = 'simplenews_user_list_admin_category_form_submit';
   }
 }
 

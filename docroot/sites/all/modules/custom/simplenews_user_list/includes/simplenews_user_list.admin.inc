@@ -24,116 +24,124 @@ function simplenews_user_list_create_user_filters($newsletter_tid = NULL) {
   // Provide user field label, type and it's ids
   // The id's of user field is important id, This id only identifies User filter
   // We have used as key in creating user filter form widget
-  $user_field_instances = field_info_instances('user')['user'];
-  foreach ($user_field_instances as $key => $user_field_instance) {
-    $widget_type[$key] = $user_field_instance['widget']['type'];
-    $widget_label[$key] = $user_field_instance['label'];
-    $widget_required[$key] = $user_field_instance['required'];
-    $user_field_info = field_info_field($key);
-    if (isset($user_field_info['settings']['allowed_values'])) {
-      $widget_allowed_values[$key] = $user_field_info['settings']['allowed_values'];
-    }
-  }
+  $user_field_array = field_info_instances('user')['user'];
+  $user_field_instances = $user_field_array['user'];
+  $user_field_instances_no = count($user_field_instances);
   
-  // Set user fields allowed values to widget according to field ids
-  foreach ($widget_allowed_values as $w_key => $w_value) {
-    foreach ($w_value as $key => $value) {
-      
-      // If value source is taxonomy term
-      if (is_array($value)) {
-        /*
-         * if (isset($value['vocabulary'])) { $vocab = taxonomy_vocabulary_machine_name_load($value['vocabulary']); $terms = taxonomy_get_tree($vocab->vid); foreach ($terms as $term) { $widget_values[$w_key]['tid_' . $term->tid] = $term->name; } }
-         */
-      }
-      
-      // If value source is default in List type widget like Select List and Checkboxes
-      else {
-        $widget_values[$w_key][$key] = $value;
+  if ($user_field_instances_no != 0) {
+    foreach ($user_field_instances as $key => $user_field_instance) {
+      $widget_type[$key] = $user_field_instance['widget']['type'];
+      $widget_label[$key] = $user_field_instance['label'];
+      $widget_required[$key] = $user_field_instance['required'];
+      $user_field_info = field_info_field($key);
+      if (isset($user_field_info['settings']['allowed_values'])) {
+        $widget_allowed_values[$key] = $user_field_info['settings']['allowed_values'];
       }
     }
-  }
-  
-  // Retrieve already stored filters in simplenews_user_list
-  // function will be invoked, during editing Newsletter category
-  if ($newsletter_tid != NULL) {
-    $users_filters_old = simplenews_user_list_get_user_list($newsletter_tid);
-    $user_filters_old_no = count($users_filters_old);
-    if ($user_filters_old_no != 0) {
-      $users_filters = unserialize($users_filters_old[0]);
-      foreach ($users_filters as $w_key => $w_value) {
-        if (is_array($w_value)) {
-          $widget_default[$w_key] = $w_value;
-        }
-        else {
-          if (strpos($w_value, 'tid_') == FALSE) {
-            $widget_default[$w_key] = $w_value;
-          }
+    
+    // Set user fields allowed values to widget according to field ids
+    foreach ($widget_allowed_values as $w_key => $w_value) {
+      foreach ($w_value as $key => $value) {
+        
+        // If value source is taxonomy term
+        if (is_array($value)) {
           /*
-           * else { $widget_default[$w_key] = 'tid_' . explode('_', $w_value)[1]; }
+           * if (isset($value['vocabulary'])) { $vocab = taxonomy_vocabulary_machine_name_load($value['vocabulary']); $terms = taxonomy_get_tree($vocab->vid); foreach ($terms as $term) { $widget_values[$w_key]['tid_' . $term->tid] = $term->name; } }
            */
         }
+        
+        // If value source is default in List type widget like Select List and Checkboxes
+        else {
+          $widget_values[$w_key][$key] = $value;
+        }
+      }
+    }
+    
+    // Retrieve already stored filters in simplenews_user_list
+    // function will be invoked, during editing Newsletter category
+    if ($newsletter_tid != NULL) {
+      $users_filters_old = simplenews_user_list_get_user_list($newsletter_tid);
+      $user_filters_old_no = count($users_filters_old);
+      if ($user_filters_old_no != 0) {
+        $users_filters = unserialize($users_filters_old[0]);
+        foreach ($users_filters as $w_key => $w_value) {
+          if (is_array($w_value)) {
+            $widget_default[$w_key] = $w_value;
+          }
+          else {
+            if (strpos($w_value, 'tid_') == FALSE) {
+              $widget_default[$w_key] = $w_value;
+            }
+            /*
+             * else { $widget_default[$w_key] = 'tid_' . explode('_', $w_value)[1]; }
+             */
+          }
+        }
+      }
+    }
+    // Create form elemtents according to user fields
+    foreach ($widget_type as $key => $value) {
+      switch($value) {
+        
+        // Create Drop down menu
+        case 'options_select' :
+          if ($widget_required[$key]) {
+            $widget_values[$key][- 1] = 'Any';
+          }
+          else {
+            $widget_values[$key][0] = 'None';
+          }
+          ksort($widget_values[$key]);
+          if (! isset($widget_default[$key])) {
+            $widget_default[$key] = array(
+                0
+            );
+          }
+          $widgets[$key] = array(
+              '#type' => 'select',
+              '#title' => t($widget_label[$key]),
+              '#options' => $widget_values[$key],
+              '#default_value' => array(
+                  $widget_default[$key]
+              )
+          );
+          break;
+        
+        // Create Checkboxes
+        case 'options_buttons' :
+          if ($widget_required[$key]) {
+            $widget_values[$key][0] = 'Any';
+          }
+          if (! isset($widget_default[$key])) {
+            $widget_default[$key] = array(
+                0
+            );
+          }
+          ksort($widget_values[$key]);
+          $widgets[$key] = array(
+              '#type' => 'checkboxes',
+              '#title' => t($widget_label[$key]),
+              '#options' => $widget_values[$key],
+              '#default_value' => $widget_default[$key]
+          );
+          break;
+        
+        // Create textfield
+        default:
+          if (! isset($widget_default[$key])) {
+            $widget_default[$key] = '';
+          }
+          $widgets[$key] = array(
+              '#type' => 'textfield',
+              '#title' => t($widget_label[$key]),
+              '#size' => 30,
+              '#default_value' => $widget_default[$key]
+          );
       }
     }
   }
-  // Create form elemtents according to user fields
-  foreach ($widget_type as $key => $value) {
-    switch($value) {
-      
-      // Create Drop down menu
-      case 'options_select' :
-        if ($widget_required[$key]) {
-          $widget_values[$key][- 1] = 'Any';
-        }
-        else {
-          $widget_values[$key][0] = 'None';
-        }
-        ksort($widget_values[$key]);
-        if (! isset($widget_default[$key])) {
-          $widget_default[$key] = array(
-              0
-          );
-        }
-        $widgets[$key] = array(
-            '#type' => 'select',
-            '#title' => t($widget_label[$key]),
-            '#options' => $widget_values[$key],
-            '#default_value' => array(
-                $widget_default[$key]
-            )
-        );
-        break;
-      
-      // Create Checkboxes
-      case 'options_buttons' :
-        if ($widget_required[$key]) {
-          $widget_values[$key][0] = 'Any';
-        }
-        if (! isset($widget_default[$key])) {
-          $widget_default[$key] = array(
-              0
-          );
-        }
-        ksort($widget_values[$key]);
-        $widgets[$key] = array(
-            '#type' => 'checkboxes',
-            '#title' => t($widget_label[$key]),
-            '#options' => $widget_values[$key],
-            '#default_value' => $widget_default[$key]
-        );
-        break;
-      
-      // Create textfield
-      default:
-        if (! isset($widget_default[$key])) {
-          $widget_default[$key] = '';
-        }
-        $widgets[$key] = array(
-            '#type' => 'textfield',
-            '#title' => t($widget_label[$key]),
-            '#size' => 30,
-            '#default_value' => $widget_default[$key]
-        );
-    }
+  else {
+    $widgets = NULL;
   }
   return $widgets;
 }
