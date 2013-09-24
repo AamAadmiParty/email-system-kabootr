@@ -1,0 +1,73 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the simplenews userlist module
+ */
+
+/**
+ * Implements hook_install
+ */
+function simplenews_user_list_schema() {
+  $schema = array();
+  $schema['simplenews_user_list'] = array(
+      'description' => 'Newsletter users category list data.',
+      'fields' => array(
+          'sul_id' => array(
+              'description' => 'Primary key: Unique subscriber list ID.',
+              'type' => 'serial',
+              'size' => 'small',
+              'unsigned' => TRUE,
+              'not null' => TRUE
+          ),
+          'user_filters' => array(
+              'description' => 'Contain sql_query which will form uids',
+              'type' => 'blob',
+              'not null' => FALSE,
+              'size' => 'normal',
+              'serialize' => TRUE
+          ),
+          'tid' => array(
+              'description' => 'The category ({simplenews_category}.tid) the users_list subscribers are subscribed to.',
+              'type' => 'int',
+              'not null' => TRUE,
+              'default' => 0
+          ),
+          'created' => array(
+              'description' => 'UNIX timestamp of when the subscription record was added.',
+              'type' => 'int',
+              'unsigned' => TRUE,
+              'not null' => TRUE,
+              'default' => 0
+          )
+      ),
+      'primary key' => array(
+          'sul_id'
+      ),
+      'foreign key' => array(
+          'tid' => array(
+              'table' => 'simplenews_category',
+              'columns' => array(
+                  'tid' => 'tid'
+              )
+          )
+      )
+  );
+  return $schema;
+}
+/**
+ * Implements hook_update().
+ * Subcribe the all the users intially to Master newsletter category.
+ */
+function simplenews_user_list_update_7001() {
+  $master_newsletter_tid = variable_get('master_simplenews_category', '');
+  if (! $master_newsletter_tid == '') {
+    $get_all_users_query = db_select('users', 'u')
+    ->fields('u', array('mail'))
+    ->condition('uid', '0', '<>')
+    ->execute()->fetchAll();
+    foreach ($get_all_users_query as $value) {
+      $email = $value->mail;
+      simplenews_subscribe_user($email, $master_newsletter_tid, FALSE, 'Default Subscribe', '');
+    }
+  }
+}
