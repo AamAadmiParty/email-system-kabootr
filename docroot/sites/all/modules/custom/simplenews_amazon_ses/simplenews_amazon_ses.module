@@ -1,11 +1,15 @@
 <?php 
+/**
+ * Exception via amazon request
+ */
+define('KABOOTR_AMAZON_REQUEST_EXCEPTION', -1);
 
 /**
  * GetIdentityVerificationAttributes Results
  */
 define('KABOOTR_IDENTITY_VERIFICATION_NOT', 0);
 define('KABOOTR_IDENTITY_VERIFICATION_SUCCESS', 1);
-define('KABOOTR_VERIFICATION_PENDING', 2);
+define('KABOOTR_IDENTITY_VERIFICATION_PENDING', 2);
 
 /**
  * SendMail Status
@@ -15,6 +19,47 @@ define('KABOOTR_MAIL_PENDING', 1);
 define('KABOOTR_MAIL_SENT', 2);
 
 /**
+ * VerifyEmailIdentity Results
+ */
+define('KABOOTR_VERIFY_EMAIL_SUCCESS', 1);
+define('KABOOTR_VERIFY_EMAIL_ERROR', 0);
+
+/**
+ * Implements hook_menu
+ */
+
+function simplenews_amazon_ses_menu() {
+  $items['admin/config/services/amazon_ses'] = array(
+      'title' => 'Amazon SES',
+      'type' => MENU_NORMAL_ITEM,
+      //'access arguments' => array('manage aap custom tweaks'),
+      'access callback' => TRUE,
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('amazon_email_setting_form'),
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
+  $items['admin/config/services/amazon_ses/get_send_statistics'] = array(
+      'title' => 'Get Send Statistics',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      //'access arguments' => array('manage aap custom tweaks'),
+      'access callback' => TRUE,
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('get_send_statistics_form'),
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
+  /* $items['admin/config/services/amazon_ses/set_identity_notification_topic'] = array(
+      'title' => 'Set Identity Notification Topic',
+      'type' => MENU_LOCAL_TASK,
+      //'access arguments' => array('manage aap custom tweaks'),
+      'access callback' => TRUE,
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('amazon_set_identity_notification_topic_form'),
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  ); */
+  return $items;
+}
+
+/**
  * 
  * @param unknown $form
  * @param unknown $form_state
@@ -22,26 +67,37 @@ define('KABOOTR_MAIL_SENT', 2);
  */
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
-  
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
-  simplenews_amazon_ses_mail_spool();
-
+ //simplenews_amazon_ses_mail_spool();
+ 
   // Add validation, if sender's mail is verified by Amazon SES
   if ($form_id == 'simplenews_admin_category_form') {
     $form['simplenews_sender_information']['from_address']['#element_validate'] = array('verify_email_identity_amazon');
   }
 }
 
+/**
+ * TODO
+ * @param unknown $element
+ * @param unknown $form_state
+ */
 function verify_email_identity_amazon($element, &$form_state) {
-  $result = simplenews_amazon_ses_send_request('GetIdentityVerificationAttributes', $element['#value'], '');
-  switch ($result['status']) {
-    case KABOOTR_IDENTITY_VERIFICATION_PENDING :
-      form_error($element, t('!email address is in pending state, yet not verified by Amazon SES. \n so Please contact amazon SES or change the mail'
-          , array('!email' => $element['#value'])));
-      break;
-    case KABOOTR_IDENTITY_VERIFICATION_NOT :
-      form_error($element, t('Please send request for verifying !email  address to Amazon SES, Or change the mail'
-          , array('!email' => $element['#value'])));
+  if (isset($element['#value'])) {
+    $actionParameter['identity'] = $element['#value'];
+    $result = simplenews_amazon_ses_send_request('GetIdentityVerificationAttributes', $actionParameter, '');
+    switch ($result['status']) {
+    	case KABOOTR_IDENTITY_VERIFICATION_PENDING :
+    	  form_error($element, t('!email address is in pending state, yet not verified by Amazon SES. \n so Please contact amazon SES or change the mail'
+    	      , array('!email' => $element['#value'])));
+    	      break;
+    	case KABOOTR_IDENTITY_VERIFICATION_NOT :
+    	  form_error($element, t('Please send request for verifying !email  address to Amazon SES, Or change the mail'
+    	      , array('!email' => $element['#value'])));
+    	  break;
+    	case KABOOTR_AMAZON_REQUEST_EXCEPTION :
+    	  form_error($element,t('Sending request to amazon is failed!, Please try again'));
+    	      break;
+    }
   }
 }
 
