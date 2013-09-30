@@ -14,12 +14,10 @@
 require 'classes/amazonses.class.php';
 function simplenews_amazon_ses_mail_spool() {
   module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
-  
   // Send pending messages from database cache.
   $spool_list = simplenews_get_spool($limit = '', $conditions = array());
   if ($spool_list) {
-    
-    
+
     $sent = array();
     $fail = array();
     $count_success = 0;
@@ -28,7 +26,12 @@ function simplenews_amazon_ses_mail_spool() {
       $result = simplenews_amazon_ses_send_source($source);
       foreach ($spool->getProcessed() as $msid => $row) {
         // Update the status of mail spoll
-        simplenews_update_spool(array($msid), $result);
+        
+        if ($result['status'] == KABOOTR_AMAZON_REQUEST_EXCEPTION) {
+        	drupal_set_message('Exception', 'error');
+        	return '';
+        }
+       // simplenews_update_spool(array($msid), $result);
         if ($result['status'] == SIMPLENEWS_SPOOL_DONE) {
           $count_success++;
           if (! isset($sent[$row->actual_nid])) {
@@ -51,7 +54,6 @@ function simplenews_amazon_ses_mail_spool() {
             $fail[$row->actual_nid]++;
           }
         }
-        
       }
       //Update subscriber count.
      // simplenews_amazon_ses_update_subscriber_count($sent);
@@ -94,7 +96,8 @@ function simplenews_amazon_ses_send_source(SimplenewsSourceInterface $source) {
   $message['attachments'] = $source->getAttachments();
   
   $simpleEmailServiceMessage = new SimpleEmailServiceMessage($message);
-  $result = simplenews_amazon_ses_send_request('SendEmail', '',   $simpleEmailServiceMessage);
+  $actionParameter['simpleEmailServiceMessage'] = $simpleEmailServiceMessage;
+  $result = simplenews_amazon_ses_send_request('SendEmail', $actionParameter);
  /*  // Log sent result in watchdog.
   if (variable_get('simplenews_debug', FALSE)) {
     if ($message['result']) {
@@ -112,33 +115,40 @@ function simplenews_amazon_ses_send_source(SimplenewsSourceInterface $source) {
 /**
  *todo 
  */
-function simplenews_amazon_ses_send_request($queryAction, $email = '', $simpleEmailServiceMessage) {
+function simplenews_amazon_ses_send_request($queryAction, $actionParameter) {
   
-  //$response = array();
   $simpleEmailService = new SimpleEmailService();
-  $simpleEmailService->createQueryRequest($queryAction, $email, $simpleEmailServiceMessage);
+  $simpleEmailService->createQueryRequest($queryAction, $actionParameter);
   $queryEndPoint = SimpleEmailService::queryEndPoint;
   $http_req = new HttpRequest($queryEndPoint,HTTP_METH_POST);
   $http_req->setHeaders($simpleEmailService->getRequestHeaders());
   $http_req->setPostFields($simpleEmailService->getRequestParameter());
-  $http_req->send();
-  $http_response_xml = simplexml_load_string($http_req->getResponseBody());
-  dpm($http_req->getResponseBody());
-  
-  // If there is error in response
-  if (isset($http_response_xml->Error)) {
-    $queryActionResult = 'Error';
-    $actionResponse = $http_response_xml->Error;
+ //dpm($http_req->getHeaders());
+//dpm($http_req->getPostFields()); 
+  $result = array();
+  try {
+    $http_req->send();
+    $http_response_xml = simplexml_load_string($http_req->getResponseBody());
+    dpm($http_req->getResponseBody());
+    //dpm($http_req->getResponseInfo());
+    // If there is error in response
+    if (isset($http_response_xml->Error)) {
+      $queryActionResult = 'Error';
+      $actionResponse = $http_response_xml->Error;
+    }
+    else {
+      $queryActionResult = $queryAction . 'Result';
+      $actionResponse = $http_response_xml->$queryActionResult;
+    }
+    
+    // $response['actionResponse'] = $actionResponse;
+    // $response['responseCode'] = $http_req->getResponseCode();
+    
+    $result = $simpleEmailService->getQueryResponse($queryAction, $actionResponse, $http_req->getResponseCode());
+  } 
+  catch ( HttpException $ex ) {
+    $result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
   }
-  else {
-    $queryActionResult = $queryAction . 'Result';
-    $actionResponse = $http_response_xml->$queryActionResult;
-  }
-  
-  //$response['actionResponse'] = $actionResponse;
-  //$response['responseCode'] = $http_req->getResponseCode();
-  
-  $result = $simpleEmailService->getQueryResponse($queryAction, $actionResponse, $http_req->getResponseCode());
   return $result;
 }
 
