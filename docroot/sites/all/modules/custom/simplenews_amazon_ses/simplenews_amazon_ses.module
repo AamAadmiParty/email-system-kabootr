@@ -25,15 +25,24 @@ define('KABOOTR_VERIFY_EMAIL_SUCCESS', 1);
 define('KABOOTR_VERIFY_EMAIL_ERROR', 0);
 
 /**
+ * Implements hook_permission
+ */
+function simplenews_amazon_ses_permission() {
+  return array(
+      'amazon_ses_configuration' => array(
+          'title' => t('Administer Amazon Simple Email Service'),
+      ),
+  );
+}
+
+/**
  * Implements hook_menu
  */
-
 function simplenews_amazon_ses_menu() {
   $items['admin/config/services/amazon_ses'] = array(
       'title' => 'Amazon SES',
       'type' => MENU_NORMAL_ITEM,
-      //'access arguments' => array('manage aap custom tweaks'),
-      'access callback' => TRUE,
+      'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
       'page arguments' => array('amazon_email_setting_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
@@ -41,8 +50,7 @@ function simplenews_amazon_ses_menu() {
   $items['admin/config/services/amazon_ses/get_send_statistics'] = array(
       'title' => 'Get Send Statistics',
       'type' => MENU_DEFAULT_LOCAL_TASK,
-      //'access arguments' => array('manage aap custom tweaks'),
-      'access callback' => TRUE,
+      'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
       'page arguments' => array('get_send_statistics_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
@@ -50,8 +58,7 @@ function simplenews_amazon_ses_menu() {
   /* $items['admin/config/services/amazon_ses/set_identity_notification_topic'] = array(
       'title' => 'Set Identity Notification Topic',
       'type' => MENU_LOCAL_TASK,
-      //'access arguments' => array('manage aap custom tweaks'),
-      'access callback' => TRUE,
+      //'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
       'page arguments' => array('amazon_set_identity_notification_topic_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
@@ -68,7 +75,8 @@ function simplenews_amazon_ses_menu() {
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
- //simplenews_amazon_ses_mail_spool();
+ // This function will be invoed in corn, which send mail via amazon
+ //simplenews_amazon_ses_mail_spool(); 
  
   // Add validation, if sender's mail is verified by Amazon SES
   if ($form_id == 'simplenews_admin_category_form') {
@@ -77,9 +85,9 @@ function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
 }
 
 /**
- * TODO
- * @param unknown $element
- * @param unknown $form_state
+ * TODO Validate, if send email is not verified by Amazon SES
+ * @param  $element
+ * @param  $form_state
  */
 function verify_email_identity_amazon($element, &$form_state) {
   if (isset($element['#value'])) {
@@ -104,10 +112,14 @@ function verify_email_identity_amazon($element, &$form_state) {
 /**
  * Implements hook_cron().
  */
-function simplenews_amazon_ses_cron() {
-  /* module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews.mail');
+//This function is currently commented, the functions run here will be tesed in form alter
+/* function simplenews_amazon_ses_cron() {
+  module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews.mail');
   simplenews_amazon_ses_mail_spool();
+  simplenews_amazon_ses_control_sending_mail();
   simplenews_clear_spool();
   // Update sent status for newsletter admin panel.
-  simplenews_send_status_update(); */
-}
+  simplenews_send_status_update();
+  
+  
+} */
