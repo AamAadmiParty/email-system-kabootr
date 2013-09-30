@@ -11,7 +11,13 @@
  *   Returns the amount of sent mails.
  *
  */
+
 require 'classes/amazonses.class.php';
+
+/**
+ * Send mail form simplenews spool mails, via amazon SES
+ * @return string
+ */
 function simplenews_amazon_ses_mail_spool() {
   module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
   // Send pending messages from database cache.
@@ -25,13 +31,14 @@ function simplenews_amazon_ses_mail_spool() {
     while ($source = $spool->nextSource()) {
       $result = simplenews_amazon_ses_send_source($source);
       foreach ($spool->getProcessed() as $msid => $row) {
-        // Update the status of mail spoll
         
+        // Handle http request exception
         if ($result['status'] == KABOOTR_AMAZON_REQUEST_EXCEPTION) {
-        	drupal_set_message('Exception', 'error');
+        	drupal_set_message('Please try again', 'error');
         	return '';
         }
-       // simplenews_update_spool(array($msid), $result);
+        // Update the status of mail spool
+        simplenews_update_spool(array($msid), $result);
         if ($result['status'] == SIMPLENEWS_SPOOL_DONE) {
           $count_success++;
           if (! isset($sent[$row->actual_nid])) {
@@ -56,8 +63,9 @@ function simplenews_amazon_ses_mail_spool() {
         }
       }
       //Update subscriber count.
-     // simplenews_amazon_ses_update_subscriber_count($sent);
+      simplenews_amazon_ses_update_subscriber_count($sent);
       
+      // Set the status of last cron run of sending mail
       variable_set('simplenews_last_cron', REQUEST_TIME);
       variable_set('simplenews_last_sent', $count_success);
     } 
@@ -98,22 +106,16 @@ function simplenews_amazon_ses_send_source(SimplenewsSourceInterface $source) {
   $simpleEmailServiceMessage = new SimpleEmailServiceMessage($message);
   $actionParameter['simpleEmailServiceMessage'] = $simpleEmailServiceMessage;
   $result = simplenews_amazon_ses_send_request('SendEmail', $actionParameter);
- /*  // Log sent result in watchdog.
-  if (variable_get('simplenews_debug', FALSE)) {
-    if ($message['result']) {
-      watchdog('simplenews', 'Outgoing email. Message type: %type<br />Subject: %subject<br />Recipient: %to', array('%type' => $source->getKey(), '%to' => $message['to'], '%subject' => $message['subject']), WATCHDOG_DEBUG);
-    }
-    else {
-      watchdog('simplenews', 'Outgoing email failed. Message type: %type<br />Subject: %subject<br />Recipient: %to', array('%type' => $source->getKey(), '%to' => $message['to'], '%subject' => $message['subject']), WATCHDOG_ERROR);
-    }
-  } */
-
   return $result;
 }
 
 
 /**
- *todo 
+ * Send the request to amazon ses, which directly call Amazon SES API
+ * After sending request, it parse the http response returned by Amazon API call
+ * @param $qyeryAction Name of Action which is to be called,
+ *        $actionParameter Additonal parameter needed to complete the call Amazon SES API
+ * @return Parsed http response, used to display to user or to take system apporpriate aciton 
  */
 function simplenews_amazon_ses_send_request($queryAction, $actionParameter) {
   
@@ -123,8 +125,7 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameter) {
   $http_req = new HttpRequest($queryEndPoint,HTTP_METH_POST);
   $http_req->setHeaders($simpleEmailService->getRequestHeaders());
   $http_req->setPostFields($simpleEmailService->getRequestParameter());
- //dpm($http_req->getHeaders());
-//dpm($http_req->getPostFields()); 
+
   $result = array();
   try {
     $http_req->send();
@@ -140,13 +141,10 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameter) {
       $queryActionResult = $queryAction . 'Result';
       $actionResponse = $http_response_xml->$queryActionResult;
     }
-    
-    // $response['actionResponse'] = $actionResponse;
-    // $response['responseCode'] = $http_req->getResponseCode();
-    
     $result = $simpleEmailService->getQueryResponse($queryAction, $actionResponse, $http_req->getResponseCode());
   } 
   catch ( HttpException $ex ) {
+    drupal_set_message($ex, 'error');
     $result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
   }
   return $result;
@@ -167,7 +165,24 @@ function simplenews_amazon_ses_update_subscriber_count($sent) {
   }
 }
 
-
+/**
+ * Handle the bounced and compaint mails,
+ * take the appropriate action like unsubcribe or delete completely form database
+ * 
+ */
+function simplenews_amazon_ses_control_sending_mail() {
+  require 'classes/amazonsns.class.php';
+  module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
+  $simpleNotificationService = new SimpleNotificationService();
+  // Find out bounced or complained mails
+  $simpleNotificationService->readSendingStatics($jsonResponse);
+  $problem_mail = $simpleNotificationService->getProblemMail();
+  // We have to decide problem mail has to be unsubribed form all newsletter category or existing
+  // or delete that user in both cases
+  // 1. Complaint
+  // 2. Bounces
+ // simplenews_unsubscribe_user($mail, $tid);
+}
 
 
 

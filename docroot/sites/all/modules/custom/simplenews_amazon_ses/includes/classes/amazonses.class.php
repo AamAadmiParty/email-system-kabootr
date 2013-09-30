@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * 
+ * @author tkuldeep
+ *
+ */
 Class SimpleEmailService {
   
   private $requestParameters = array(); //Any request parameters.
@@ -9,6 +14,9 @@ Class SimpleEmailService {
 
   const queryEndPoint = 'https://email.us-east-1.amazonaws.com'; //The resource the request is acting on.
   const requestContentType = 'application/x-www-form-urlencoded';
+  
+  // These security credential is depented to AWS account or it should be sepicific
+  // sender email or domain
   const accessKeyId = 'AKIAJ4EMNFQWY3IACPEQ';
   const secretAccessKey = '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';
 
