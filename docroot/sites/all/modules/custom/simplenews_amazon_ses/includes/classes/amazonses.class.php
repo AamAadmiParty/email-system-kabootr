@@ -67,71 +67,120 @@ Class SimpleEmailService {
     	case 'VerifyDomainIdentity' :
     	  $result = $this->verifyDomainIdentity();
     	  break;
-    	case 'SendEmail':
+    	case 'SendEmail' :
     	  $result = $this->sendEmail('', FALSE, $actionResponse, $responseCode);
+    	  break;
+      case 'SetIdentityFeedbackForwardingEnabled' :
+        $result = $this->setIdentityFeedbackForwardingEnabled('', FALSE, $actionResponse, $responseCode);
+        break;
+      case 'SetIdentityNotificationTopic' :
+        $result = $this->setIdentityNotificationTopic('', FALSE, $actionResponse, $responseCode);
+        break;
+      case 'GetIdentityNotificationAttributes' :
+        $result = $this->getIdentityNotificationAttributes('', FALSE, $actionResponse, $responseCode);
+        break;
+      case 'GetSendStatistics' :
+        $result = $this->getSendStatistics('', FALSE, $actionResponse, $responseCode);
+        break;
+      case 'GetSendQuota' :
+        $result = $this->getSendQuota('', FALSE, $actionResponse, $responseCode);
+        break;
+        
     }
     return $result;
   }
   // Add required parameter and header to the Query according to
   // Query action name
+  // @param identity can be email or domain name
   
-  public function createQueryRequest($queryAction,$email = '', $simpleEmailServiceMessage = NULL) {
+  public function createQueryRequest($queryAction, $actionParameter = array()) {
 
     // must be in format 'Thu, 26 Sep 2013 14:26:55 +0530'
     $date =  date(DATE_RFC2822);
     $signature = $this->getSignature($date);
     $this->setRequestHeaders($date, $signature);
-    
     switch($queryAction) {
       case 'GetIdentityVerificationAttributes' :
-        $this->getIdentityVerificationAttributes($email, TRUE);
+        $this->getIdentityVerificationAttributes($actionParameter, TRUE);
         break;
       case 'VerifyEmailIdentity' :
-        $this->verifyEmailIdentity($email, TRUE);
+        $this->verifyEmailIdentity($actionParameter, TRUE);
         break;
       case 'VerifyDomainIdentity' :
-        $this->verifyDomainIdentity();
+        $this->verifyDomainIdentity($actionParameter, TRUE);
         break;
-      case 'SendEmail':
-        $this->sendEmail($simpleEmailServiceMessage, TRUE);
+      case 'SendEmail' :
+        $this->sendEmail($actionParameter, TRUE);
+        break;
+      case 'SetIdentityFeedbackForwardingEnabled' :
+        $result = $this->setIdentityFeedbackForwardingEnabled($actionParameter, TRUE);
+        break;
+      case 'SetIdentityNotificationTopic' :
+        $result = $this->setIdentityNotificationTopic($actionParameter, TRUE);
+        break;
+      case 'GetIdentityNotificationAttributes' :
+        $result = $this->getIdentityNotificationAttributes($actionParameter, TRUE);
+        break;
+      case 'GetSendStatistics':
+        $result = $this->getSendStatistics($actionParameter, TRUE);
+        break;
+      case 'GetSendQuota':
+          $result = $this->getSendQuota($actionParameter, TRUE);
     }
   }
   
   //TODO
-  private function getIdentityVerificationAttributes($email, $request, $actionResponse = '', $responseCode = '0') {
+  private function getIdentityVerificationAttributes($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
       $n = 1;
       $this->setRequestParameter('Action', 'GetIdentityVerificationAttributes');
-      $this->setRequestParameter('Identities.member.' . $n, $email);
+      if (isset($actionParameter['identity'])) {
+      	$this->setRequestParameter('Identities.member.' . $n, $actionParameter['identity']);
+      }
     }
     else {
       if ($responseCode == '200') {
         if (isset($actionResponse->VerificationAttributes->entry)) {
+          $result = array();
           $verificationStatus = $actionResponse->VerificationAttributes->entry->value->VerificationStatus;
           switch($verificationStatus) {
             case 'Success' :
-              return KABOOTR_IDENTITY_VERIFICATION_SUCCESS;
+              $result['status'] =  KABOOTR_IDENTITY_VERIFICATION_SUCCESS;
+              break;
             case 'Pending' :
-              return KABOOTR_IDENTITY_VERIFICATION_PENDING;
+              $result['status'] =  KABOOTR_IDENTITY_VERIFICATION_PENDING;
+              break;
           }
         }
         else {
-            return KABOOTR_IDENTITY_VERIFICATION_NOT;
+            $result['status'] =  KABOOTR_IDENTITY_VERIFICATION_NOT;
         }
       }
+      return $result;
     }
   }
   // TODO
-  private function verifyEmailIdentity($email) {
-    $this->setRequestParameter('Action', 'VerifyEmailIdentity');
-    $this->setRequestParameter('EmailAddress', $email);
+  private function verifyEmailIdentity($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'VerifyEmailIdentity');
+      if (isset($actionParameter['identity'])) {
+        $this->setRequestParameter('EmailAddress', $actionParameter['identity']);
+      }
+    }
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['status'] = KABOOTR_VERIFY_EMAIL_SUCCESS;
+        return $result;
+      }
+    }
   }
   
   // TODO
-  private function sendEmail($simpleEmailServiceMessage, $request, $actionResponse = '', $responseCode = '0') {
+  private function sendEmail($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     // Set query parameter to send http request
-    
-    if ($request) {
+    if ($request && isset($actionParameter['simpleEmailServiceMessage'])) {
+      $simpleEmailServiceMessage = $actionParameter['simpleEmailServiceMessage'];
       $this->setRequestParameter('Action', 'SendEmail');
       $i = 1;
       if ($simpleEmailServiceMessage->to != NULL) {
@@ -171,12 +220,117 @@ Class SimpleEmailService {
       }
     }
       
-      // Parse the http response
+    // Parse the http response
     else {
       $result = array();
       if ($responseCode == '200' && isset($actionResponse->MessageId)) {
         $result['status'] = KABOOTR_MAIL_SENT;
         $result['error'] = FALSE;
+        return $result;
+      }
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_MAIL_NOT_SENT;
+        $result['error'] = TRUE;
+        return $result;
+      }
+    }
+  }
+  
+  // TODO
+  private function setIdentityFeedbackForwardingEnabled($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'SetIdentityFeedbackForwardingEnabled');
+      if (isset($actionParameter['identity'])) {
+        $this->setRequestParameter('Identity', $actionParameter['identity']);
+      }
+      
+      if (isset($actionParameter['forwardingEnabled'])) {
+        $this->setRequestParameter('ForwardingEnabled', $actionParameter['forwardingEnabled']);
+      }
+     
+    }
+  }
+  
+  // TODO
+  private function setIdentityNotificationTopic($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'SetIdentityNotificationTopic');
+      if (isset($actionParameter['identity'])) {
+        $this->setRequestParameter('Identity', $actionParameter['identity']);
+      }
+      
+      if (isset($actionParameter['snsTopic'])) {
+        $this->setRequestParameter('SnsTopic', $actionParameter['snsTopic']);
+      }
+    }
+  
+  }
+  
+  // TODO
+  private function getIdentityNotificationAttributes($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $n = 1;
+      $this->setRequestParameter('Action', 'GetIdentityNotificationAttributes');
+      if (isset($actionParameter['identity']['member'])) {
+        foreach ($actionParameter['identity']['member'] AS $member)
+        $this->setRequestParameter('Identities.member.' . $n, $member);
+        $n++;
+      }
+    }
+  }
+
+  // TODO
+  private function getSendStatistics($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'GetSendStatistics');
+    }
+    // Parse the http response
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['error'] = FALSE;
+        $member = $actionResponse->SendDataPoints->member;
+        $result['DeliveryAttempts'] = 0;  //Number of emails that have been enqueued for sending.
+        $result['Rejects'] = 0;           //Number of emails rejected by Amazon SES.
+        $result['Bounces'] = 0;           //Number of emails that have bounced.
+        $result['Complaints'] = 0;        //Number of unwanted emails that were rejected by recipients.
+        foreach ($member as $value) {
+          $result['DeliveryAttempts'] = $value->DeliveryAttempts + $result['DeliveryAttempts'];
+          $result['Rejects'] = $value->Rejects + $result['Rejects'];
+          $result['Bounces'] = $value->Bounces + $result['Bounces'];
+          $result['Complaints'] = $value->Complaints + $result['Complaints'];
+        }
+        return $result;
+      }
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_MAIL_NOT_SENT;
+        $result['error'] = TRUE;
+        return $result;
+      }
+    }
+  }
+  
+  //TODO
+  private function getSendQuota($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'GetSendQuota');
+    }
+    // Parse the http response
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['error'] = FALSE;
+        $result['SentLast24Hours'] = $actionResponse->SentLast24Hours;
+        $result['Max24HourSend'] = $actionResponse->Max24HourSend;
+        $result['MaxSendRate'] = $actionResponse->MaxSendRate;
         return $result;
       }
       // Error in response
