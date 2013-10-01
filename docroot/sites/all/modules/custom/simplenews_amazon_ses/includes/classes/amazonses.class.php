@@ -1,29 +1,28 @@
 <?php
 
 /**
- * 
+ * This class used to make appropriate request, 
+ * set request headers and read the response send by amazon 
  * @author tkuldeep
  *
  */
 Class SimpleEmailService {
   
-  private $requestParameters = array(); //Any request parameters.
-  private $queryAction = ''; //The action you want to perform on the endpoint, such as sending a message
-  private $requestHeaders = array();
-  private $postFields = array();
+  private $requestParameters = array(); //Specific request parameters to action.
+  private $queryAction = '';            //The action you want to perform on the endpoint, such as sending a message
+  private $requestHeaders = array();    // Common request parameters to all actions
 
   const queryEndPoint = 'https://email.us-east-1.amazonaws.com'; //The resource the request is acting on.
   const requestContentType = 'application/x-www-form-urlencoded';
   
   // These security credential is depented to AWS account or it should be sepicific
-  // sender email or domain
+  // sender email or domain, 
+  // Access keys will be saved in database or in csv file [Pending] 
   const accessKeyId = 'AKIAJ4EMNFQWY3IACPEQ';
   const secretAccessKey = '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';
 
   private function setRequestParameter($key, $value) {
-    $this->requestParameters['AWSAccessKeyId'] = self::accessKeyId;
     $this->requestParameters[$key] = $value;
-    
   }
   public function getRequestParameter() {
     return $this->requestParameters;
@@ -33,27 +32,17 @@ Class SimpleEmailService {
     return $this->requestHeaders;
   }
   
-  public function getPostFields() {
-    return $this->postFields;
-  }
-  
-  private function setPostFields($postFields) {
-    $this->postFields = $postFields;
-    
-  }
-
   // Method for setting request headers
   private function setRequestHeaders($dateValue, $signature) {
       $this->requestHeaders['Content-Type'] = self::requestContentType;
-    //  $this->requestHeaders['Content-Length'] = '174';
       $this->requestHeaders['Date'] = $dateValue;
       $accessKeyId = self::accessKeyId;
       $this->requestHeaders['X-Amzn-Authorization'] = "AWS3-HTTPS "
           ."AWSAccessKeyId={$accessKeyId},"
           ."Algorithm=HmacSHA1,Signature={$signature}";
       $this->requestHeaders['Timestamp'] = date('YYYY-MM-DDThh:mm:ssZ');
-      //$this->requestHeaders['SignatureVersion'] = $value;
       $this->requestHeaders['Version'] =  '2010-12-01';
+      $this->requestHeaders['AWSAccessKeyId'] = self::accessKeyId;
   }
 
   // Create HMAC-SHA Signatures for X-Amzn-Authorization HTTP header.
@@ -62,6 +51,13 @@ Class SimpleEmailService {
     return $signature;
   }
   
+  /**
+   * Parse the result xmlObject response, 
+   * @param String  $queryAction Name of query action which is to be called
+   * @param XMLObject  $actionResponse Response returned by query
+   * @param String $responseCode Http response code
+   * @return parsed xmlobject in associative array, key corresponds to response element.
+   */
   public function getQueryResponse($queryAction, $actionResponse, $responseCode) {
 
     $result = '';
@@ -97,16 +93,21 @@ Class SimpleEmailService {
     }
     return $result;
   }
-  // Add required parameter and header to the Query according to
-  // Query action name
-  // @param identity can be email or domain name
+  
+  /**
+   * Add required parameter and header to the Query according to
+   * Query action name
+   * @param String $queryAction Name of query action which is to be called
+   * @param Array $actionParameter Specific parameter related to Query Action
+   */
   
   public function createQueryRequest($queryAction, $actionParameter = array()) {
 
     // must be in format 'Thu, 26 Sep 2013 14:26:55 +0530'
     $date =  date(DATE_RFC2822);
-    $signature = $this->getSignature($date);
-    $this->setRequestHeaders($date, $signature);
+    $signature = $this->getSignature($date);    // get HMAC-SHA Signatures
+    $this->setRequestHeaders($date, $signature); // Set common request parameter
+    
     switch($queryAction) {
       case 'GetIdentityVerificationAttributes' :
         $this->getIdentityVerificationAttributes($actionParameter, TRUE);
@@ -121,23 +122,32 @@ Class SimpleEmailService {
         $this->sendEmail($actionParameter, TRUE);
         break;
       case 'SetIdentityFeedbackForwardingEnabled' :
-        $result = $this->setIdentityFeedbackForwardingEnabled($actionParameter, TRUE);
+        $this->setIdentityFeedbackForwardingEnabled($actionParameter, TRUE);
         break;
       case 'SetIdentityNotificationTopic' :
-        $result = $this->setIdentityNotificationTopic($actionParameter, TRUE);
+         $this->setIdentityNotificationTopic($actionParameter, TRUE);
         break;
       case 'GetIdentityNotificationAttributes' :
-        $result = $this->getIdentityNotificationAttributes($actionParameter, TRUE);
+        $this->getIdentityNotificationAttributes($actionParameter, TRUE);
         break;
       case 'GetSendStatistics':
-        $result = $this->getSendStatistics($actionParameter, TRUE);
+        $this->getSendStatistics($actionParameter, TRUE);
         break;
       case 'GetSendQuota':
-          $result = $this->getSendQuota($actionParameter, TRUE);
+        $this->getSendQuota($actionParameter, TRUE);
     }
   }
   
-  //TODO
+  /**
+   * Implmetns Query Action GetIdentityVerificationAttributes,This action is throttled at one request per second.
+   * @param Array $actionParameter Given a list of identities (email addresses and/or domains), 
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return Array: returns the verification status and (for domain
+   *   identities) the verification token for each identity.
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_GetIdentityVerificationAttributes.html  
+   */
   private function getIdentityVerificationAttributes($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
       $n = 1;
@@ -167,7 +177,19 @@ Class SimpleEmailService {
       return $result;
     }
   }
-  // TODO
+  
+  /**
+   * Implmetns Query Action VerifyEmailIdentity,
+   * Verifies an email address. This action causes a confirmation email message to be sent to the specified
+   * address. This action is throttled at one request per second.
+   * @param Array $actionParameter Given a identitiy(email addresse or domain),
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return Array: returns the verification status
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_VerifyEmailIdentity.html
+   */
+  
   private function verifyEmailIdentity($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
       $this->setRequestParameter('Action', 'VerifyEmailIdentity');
@@ -184,7 +206,18 @@ Class SimpleEmailService {
     }
   }
   
-  // TODO
+  /**
+   * Implmetns Query Action SendEmail,
+   * Composes an email message based on input data, and then immediately queues the message for sending.
+   * @param Array $actionParameter SimpleEmailServiceMessage object,
+   * This object contains Destination, Message, ReplyToAddresses.member.N, ReturnPath, Source
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return Array: returns the verification status
+   * @link For more detail http://docs.aws.amazon.com/ses/latest/APIReference/API_SendEmail.html
+   */
+  
   private function sendEmail($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     // Set query parameter to send http request
     if ($request && isset($actionParameter['simpleEmailServiceMessage'])) {
@@ -248,7 +281,16 @@ Class SimpleEmailService {
     }
   }
   
-  // TODO
+  /**
+   * Implmetns Query Action SetIdentityFeedbackForwardingEnabled,
+   * Given an identity (email address or domain), enables or disables whether Amazon SES forwards feedback notifications as email. Feedback forwarding may only be disabled when both complaint and bounce topics are set.
+   *  This action is throttled at one request per second.
+   * @param Array $actionParameter Given identity
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_SetIdentityFeedbackForwardingEnabled.html
+   */
   private function setIdentityFeedbackForwardingEnabled($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
       $this->setRequestParameter('Action', 'SetIdentityFeedbackForwardingEnabled');
@@ -263,7 +305,16 @@ Class SimpleEmailService {
     }
   }
   
-  // TODO
+  /**
+   * Implmetns Query Action SetIdentityNotificationTopic,
+   * Given an identity (email address or domain), sets the Amazon SNS topic to which Amazon SES will publish bounce and complaint notifications for emails sent with that identity as the Source. Publishing to topics may only be disabled when feedback forwarding is enabled.
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Given identity
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_SetIdentityNotificationTopic.html
+   */
   private function setIdentityNotificationTopic($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
       $this->setRequestParameter('Action', 'SetIdentityNotificationTopic');
@@ -278,7 +329,16 @@ Class SimpleEmailService {
   
   }
   
-  // TODO
+   /**
+   * Implmetns Query Action GetIdentityNotificationAttributes,
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Given a list of verified identities (email addresses and/or domains)
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return An array describing identity notification attributes.
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_GetIdentityNotificationAttributes.html
+   */
   private function getIdentityNotificationAttributes($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
       $n = 1;
@@ -291,7 +351,19 @@ Class SimpleEmailService {
     }
   }
 
-  // TODO
+  /**
+   * Implmetns Query Action GetSendStatistics,
+   * The result is a list of data points, representing the last two weeks of sending activity.
+   * Each data point in the list contains statistics for a 15-minute interval.
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Given a list of verified identities (email addresses and/or domains)
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return An array containg the user's sending statistics. 
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_GetSendStatistics.html
+   */
+  
   private function getSendStatistics($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
       $this->setRequestParameter('Action', 'GetSendStatistics');
@@ -326,7 +398,16 @@ Class SimpleEmailService {
     }
   }
   
-  //TODO
+  /**
+   * Implmetns Query Action GetSendQuota,
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Empty array
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return An array containg user's current sending limits.
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_GetSendQuota.html
+   */
   private function getSendQuota($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
       $this->setRequestParameter('Action', 'GetSendQuota');
