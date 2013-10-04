@@ -228,7 +228,8 @@ Class SimpleEmailService {
         $dkimTokens = $entry->value->DkimTokens->member;
         $i = 0;
         if (strpos($result['key'], '@') != FALSE) {
-          $domain = explode('@', $result['key'])[1];
+          $temp_arr = explode('@', $result['key']);
+          $domain = $temp_arr[1];
         }
         else {
           $domain = $result['key'];
