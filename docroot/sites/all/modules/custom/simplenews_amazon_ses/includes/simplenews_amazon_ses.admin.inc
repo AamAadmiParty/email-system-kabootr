@@ -8,6 +8,9 @@
  * @return Array $form
  */
 function amazon_identity_verify_form($form, &$form_state) {
+  drupal_add_js(drupal_get_path('module', 'simplenews_amazon_ses') . '/js/amazon_ses_config.js');
+  drupal_add_css(drupal_get_path('module', 'simplenews_amazon_ses') . '/css/amazon_ses_config.css');
+  
   $form['amazon_ses_service'] = array(
       '#type' => 'fieldset',
       '#title' => t('Subscribe to Amazon SES Service'),
@@ -22,7 +25,7 @@ function amazon_identity_verify_form($form, &$form_state) {
       '#type' => 'radios',
       '#title' => t('Please Select Identityfication Type'),
       '#options' => array(
-          'EmailAddres' => 'Email Address',
+          'EmailAddress' => 'Email Address',
           'Domain' => 'Domain Name'
       ),
       '#attributes' => array('class' => array('container-inline')),
@@ -49,6 +52,8 @@ function amazon_identity_verify_form($form, &$form_state) {
                 of every recipient except for the recipients provided by the Amazon SES mailbox simulator.<br>
           <b>Important:</b> In order to complete verification, On success full sending this request you will get a token or a TXT 
           record that must be placed in the DNS settings for the domain.'),
+      '#prefix' => '<div class = identity-domain-class>',
+      '#suffix' => '</div>',
   );
    
   $form['amazon_ses_service']['identity_email'] = array(
@@ -61,6 +66,8 @@ function amazon_identity_verify_form($form, &$form_state) {
                         <br> <b>Important:</b> Amazon SES only verifies fully qualified domain names (FQDNs). Even if you verify a domain,
                         you have to verify subdomains of that domain. For example, if you want to send email from both
                         example.com and newyork.example.com, you need to verify each of these FQDNs separately.'),
+      '#prefix' => '<div class = identity-email-class>',
+      '#suffix' => '</div>',
   );
    
   $form['amazon_ses_service']['send_request'] = array(
@@ -122,7 +129,7 @@ function amazon_identity_verify_form_submit($form, &$form_state) {
       $identity_type = $form_state['values']['identity_type'];
       $_SESSION['amazon_selected_identity'] = $identity_type;
       switch($identity_type) {
-        case 'EmailAddres' :
+        case 'EmailAddress' :
           $actionParameter['EmailAddress'] = $form_state['values']['identity_email'];
           $result = simplenews_amazon_ses_send_request('VerifyEmailIdentity', $actionParameter);
           break;
@@ -652,8 +659,8 @@ function amazon_domain_dkim_enable_form_validate($form, &$form_state) {
     }
   }
     
-    // This action is throttled at one request per second.
-    // Wait for 1 second
+  // This action is throttled at one request per second.
+  // Wait for 1 second
   sleep(1);
   unset($actionParameter);
   if (isset($result['member'])) {

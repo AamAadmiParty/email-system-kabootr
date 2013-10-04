@@ -84,6 +84,7 @@ function simplenews_amazon_ses_menu() {
       'page arguments' => array('amazon_set_identity_notification_topic_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   ); */
+  
   $items['admin/config/services/amazon_ses/amazon_domain_dkim_setting'] = array(
       'title' => 'DKIM Setting',
       'type' => MENU_LOCAL_TASK,
