@@ -125,12 +125,11 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameter) {
   $http_req = new HttpRequest($queryEndPoint,HTTP_METH_POST);
   $http_req->setHeaders($simpleEmailService->getRequestHeaders());
   $http_req->setPostFields($simpleEmailService->getRequestParameter());
-
   $result = array();
   try {
     $http_req->send();
     $http_response_xml = simplexml_load_string($http_req->getResponseBody());
-    dpm($http_req->getResponseBody());
+    //dpm($http_req->getResponseBody());
     //dpm($http_req->getResponseInfo());
     // If there is error in response
     if (isset($http_response_xml->Error)) {
@@ -144,7 +143,6 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameter) {
     $result = $simpleEmailService->getQueryResponse($queryAction, $actionResponse, $http_req->getResponseCode());
   } 
   catch ( HttpException $ex ) {
-    drupal_set_message($ex, 'error');
     $result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
   }
   return $result;

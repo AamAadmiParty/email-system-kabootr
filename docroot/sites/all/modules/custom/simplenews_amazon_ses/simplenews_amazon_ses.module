@@ -3,7 +3,8 @@
  * Exception via amazon request
  */
 define('KABOOTR_AMAZON_REQUEST_EXCEPTION', -1);
-
+define('KABOOTR_AMAZON_REQUEST_FAILURE', 0);
+define('KABOOTR_AMAZON_REQUEST_SUCCESS', 1);
 /**
  * GetIdentityVerificationAttributes Results
  */
@@ -25,6 +26,18 @@ define('KABOOTR_VERIFY_EMAIL_SUCCESS', 1);
 define('KABOOTR_VERIFY_EMAIL_ERROR', 0);
 
 /**
+ * VerifyDomainIdentity Results
+ */
+define('KABOOTR_VERIFY_DOMAIN_SUCCESS', 2);
+define('KABOOTR_VERIFY_DOMAIN_ERROR', 3);
+
+/**
+ * DeleteIdentity Results
+ */
+define('KABOOTR_DELETE_IDENTITY_ERROR', 0);
+define('KABOOTR_DELETE_IDENTITY_SUCCESS', 1);
+
+/**
  * Implements hook_permission
  */
 function simplenews_amazon_ses_permission() {
@@ -39,20 +52,28 @@ function simplenews_amazon_ses_permission() {
  * Implements hook_menu
  */
 function simplenews_amazon_ses_menu() {
-  $items['admin/config/services/amazon_ses'] = array(
-      'title' => 'Amazon SES',
+  $items['admin/config/services/amazon_ses/amazon_identity_verify'] = array(
+      'title' => 'Verify Sender Identity',
       'type' => MENU_NORMAL_ITEM,
       'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('amazon_email_setting_form'),
+      'page arguments' => array('amazon_identity_verify_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
-  $items['admin/config/services/amazon_ses/get_send_statistics'] = array(
-      'title' => 'Get Send Statistics',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
+  $items['admin/config/services/amazon_ses/amazon_get_mail_statistics'] = array(
+      'title' => 'EMail Statistics',
+      'type' => MENU_NORMAL_ITEM,
       'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('get_send_statistics_form'),
+      'page arguments' => array('amazon_get_mail_statistics_form'),
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
+  $items['admin/config/services/amazon_ses/amazon_identity_list'] = array(
+      'title' => 'Idenitity List',
+      'type' => MENU_NORMAL_ITEM,
+      'access arguments' => array('amazon_ses_configuration'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('amazon_identity_list_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
   /* $items['admin/config/services/amazon_ses/set_identity_notification_topic'] = array(
@@ -63,9 +84,27 @@ function simplenews_amazon_ses_menu() {
       'page arguments' => array('amazon_set_identity_notification_topic_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   ); */
+  $items['admin/config/services/amazon_ses/amazon_domain_dkim_setting'] = array(
+      'title' => 'DKIM Setting',
+      'type' => MENU_LOCAL_TASK,
+      'access arguments' => array('amazon_ses_configuration'),
+      'page callback' => 'amazon_domain_dkim_setting',
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
   return $items;
 }
 
+function amazon_identity_verify() {
+  $output = array();
+  $output['amazon_identity_request'] = drupal_get_form('amazon_identity_request_form');
+  return $output;
+}
+
+function amazon_domain_dkim_setting() {
+  $output = array();
+  $output['amazon_domain_dkim_verify'] = drupal_get_form('amazon_domain_dkim_enable_form');
+  return $output;
+}
 /**
  * 
  * @param unknown $form
@@ -74,13 +113,64 @@ function simplenews_amazon_ses_menu() {
  */
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
+//  drupal_goto('amazon_identity_list_form');
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
  // This function will be invoed in corn, which send mail via amazon
  //simplenews_amazon_ses_mail_spool(); 
- 
   // Add validation, if sender's mail is verified by Amazon SES
   if ($form_id == 'simplenews_admin_category_form') {
     $form['simplenews_sender_information']['from_address']['#element_validate'] = array('verify_email_identity_amazon');
+  }
+  if ($form_id == 'amazon_domain_dkim_enable_form') {
+    if (isset($form_state['values'])) {
+      module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
+      if (($form_state['clicked_button']['#value']) == 'Send Request') {
+        $selected_row = $form_state['values']['list_table'];
+        $actionParameter['Identities'] = array(
+            $form_state['complete form']['amazon_list_identities_update']['list_table']['#options'][$selected_row]['key']
+        );
+        $result = simplenews_amazon_ses_send_request('GetIdentityDkimAttributes', $actionParameter); // This request is throttled per second
+                                                                                                     // Display the response of calling of Amazon SES API
+        if (isset($result['status'])) {
+          switch($result['status']) {
+            case KABOOTR_AMAZON_REQUEST_EXCEPTION :
+              $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
+                    please check your network connection or try after some time.', array(
+                  '!action' => "GetIdentityDkimAttributes"
+              ));
+              drupal_set_message($message, 'error');
+              break;
+            
+            case KABOOTR_AMAZON_REQUEST_FAILURE :
+              $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
+                    missing some parameter or Request is not valid.', array(
+                  '!action' => "GetIdentityDkimAttributes"
+              ));
+              drupal_set_message($message, 'error');
+              break;
+          }
+        }
+        else {
+          $learn_dkim = l('Learn More about DKIM', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/dkim.html');
+          $form['div']['domain_dkim_token_table']['#options'] = $result['member'];
+          
+          // disable checkboxes in tableselect
+          foreach ($result['member'] as $key => $value) {
+            $form['div']['domain_dkim_token_table'][$key]['#disabled'] = TRUE;
+          }
+          $form['div']['domain_dkim_token_table']['#access'] = TRUE;
+          $form['div']['domain_dkim_info']['#prefix'] = "<div id = domain_dkim_info <b>DKIM settings for your domain have been generated.</b> <br>
+          The information below must be added to your domain's DNS records. How you update the DNS settings depends on who provides your DNS service;
+          if your DNS service is provided by a domain name registrar, please contact that registrar to update your DNS records.{$learn_dkim} <br></br>
+          <b>DKIM:</b> Waiting on sender verification... <br>
+          <b>DKIM Verification Status:</b> {$result['DkimVerificationStatus']} <br></br>
+          To enable DKIM signing for your domain, the records below must be entered in your DNS settings. AWS will automatically detect the presence of these records,
+          and allow DKIM signing at that time. Note that verification of these settings may take up to 72 hours.<br>
+          ";
+          $form['div']['domain_dkim_info']['#suffix'] = '</div>';
+        }
+      }
+    }
   }
 }
 

@@ -62,14 +62,20 @@ Class SimpleEmailService {
 
     $result = '';
     switch($queryAction) {
-    	case 'GetIdentityVerificationAttributes' :
-    	  $result = $this->getIdentityVerificationAttributes('', FALSE, $actionResponse, $responseCode);
+      case 'DeleteIdentity' :
+        $result = $this->deleteIdentity('', FALSE, $actionResponse, $responseCode);
+        break;
+      case 'GetIdentityDkimAttributes' :
+        $result = $this->getIdentityDkimAttributes('', FALSE, $actionResponse, $responseCode);
+        break;
+      case 'GetIdentityVerificationAttributes' :
+        $result = $this->getIdentityVerificationAttributes('', FALSE, $actionResponse, $responseCode);
     	  break;
     	case 'VerifyEmailIdentity' :
     	  $result = $this->verifyEmailIdentity('', FALSE, $actionResponse, $responseCode);
     	  break;
     	case 'VerifyDomainIdentity' :
-    	  $result = $this->verifyDomainIdentity();
+    	  $result = $this->verifyDomainIdentity('', FALSE, $actionResponse, $responseCode);
     	  break;
     	case 'SendEmail' :
     	  $result = $this->sendEmail('', FALSE, $actionResponse, $responseCode);
@@ -88,6 +94,9 @@ Class SimpleEmailService {
         break;
       case 'GetSendQuota' :
         $result = $this->getSendQuota('', FALSE, $actionResponse, $responseCode);
+        break;
+      case 'ListIdentities':
+        $result = $this->listIdentities('', FALSE, $actionResponse, $responseCode);
         break;
         
     }
@@ -109,14 +118,26 @@ Class SimpleEmailService {
     $this->setRequestHeaders($date, $signature); // Set common request parameter
     
     switch($queryAction) {
+      case 'DeleteIdentity' :
+        $this->deleteIdentity($actionParameter, TRUE);
+        break;
+      case 'GetIdentityDkimAttributes' :
+        $this->getIdentityDkimAttributes($actionParameter, TRUE);
+        break;
+      case 'GetIdentityNotificationAttributes' :
+        $this->getIdentityNotificationAttributes($actionParameter, TRUE);
+        break;
       case 'GetIdentityVerificationAttributes' :
         $this->getIdentityVerificationAttributes($actionParameter, TRUE);
         break;
-      case 'VerifyEmailIdentity' :
-        $this->verifyEmailIdentity($actionParameter, TRUE);
+      case 'GetSendStatistics' :
+        $this->getSendStatistics($actionParameter, TRUE);
         break;
-      case 'VerifyDomainIdentity' :
-        $this->verifyDomainIdentity($actionParameter, TRUE);
+      case 'GetSendQuota' :
+        $this->getSendQuota($actionParameter, TRUE);
+        break;
+      case 'ListIdentities' :
+        $this->listIdentities($actionParameter, TRUE);
         break;
       case 'SendEmail' :
         $this->sendEmail($actionParameter, TRUE);
@@ -125,148 +146,42 @@ Class SimpleEmailService {
         $this->setIdentityFeedbackForwardingEnabled($actionParameter, TRUE);
         break;
       case 'SetIdentityNotificationTopic' :
-         $this->setIdentityNotificationTopic($actionParameter, TRUE);
+        $this->setIdentityNotificationTopic($actionParameter, TRUE);
         break;
-      case 'GetIdentityNotificationAttributes' :
-        $this->getIdentityNotificationAttributes($actionParameter, TRUE);
+      case 'VerifyDomainDkim' :
+        $this->verifyDomainDkim($actionParameter, TRUE);
         break;
-      case 'GetSendStatistics':
-        $this->getSendStatistics($actionParameter, TRUE);
+      case 'VerifyDomainIdentity' :
+        $this->verifyDomainIdentity($actionParameter, TRUE);
         break;
-      case 'GetSendQuota':
-        $this->getSendQuota($actionParameter, TRUE);
+      case 'VerifyEmailIdentity' :
+        $this->verifyEmailIdentity($actionParameter, TRUE);
+        break;
     }
   }
   
   /**
-   * Implmetns Query Action GetIdentityVerificationAttributes,This action is throttled at one request per second.
-   * @param Array $actionParameter Given a list of identities (email addresses and/or domains), 
-   * @param Boolean $request
-   * @param string $actionResponse
-   * @param string $responseCode
-   * @return Array: returns the verification status and (for domain
-   *   identities) the verification token for each identity.
-   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_GetIdentityVerificationAttributes.html  
-   */
-  private function getIdentityVerificationAttributes($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
-    if ($request) {
-      $n = 1;
-      $this->setRequestParameter('Action', 'GetIdentityVerificationAttributes');
-      if (isset($actionParameter['identity'])) {
-      	$this->setRequestParameter('Identities.member.' . $n, $actionParameter['identity']);
-      }
-    }
-    else {
-      if ($responseCode == '200') {
-        if (isset($actionResponse->VerificationAttributes->entry)) {
-          $result = array();
-          $verificationStatus = $actionResponse->VerificationAttributes->entry->value->VerificationStatus;
-          switch($verificationStatus) {
-            case 'Success' :
-              $result['status'] =  KABOOTR_IDENTITY_VERIFICATION_SUCCESS;
-              break;
-            case 'Pending' :
-              $result['status'] =  KABOOTR_IDENTITY_VERIFICATION_PENDING;
-              break;
-          }
-        }
-        else {
-            $result['status'] =  KABOOTR_IDENTITY_VERIFICATION_NOT;
-        }
-      }
-      return $result;
-    }
-  }
-  
-  /**
-   * Implmetns Query Action VerifyEmailIdentity,
-   * Verifies an email address. This action causes a confirmation email message to be sent to the specified
-   * address. This action is throttled at one request per second.
+   * Call Query API action DeleteIdentity,
+   * Deletes the specified identity (email address or domain) from the list of verified identities.
+   * This action is throttled at one request per second.
    * @param Array $actionParameter Given a identitiy(email addresse or domain),
    * @param Boolean $request
    * @param string $actionResponse
    * @param string $responseCode
-   * @return Array: returns the verification status
-   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_VerifyEmailIdentity.html
+   * @return Array: Status of Query call
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_DeleteIdentity.html
    */
-  
-  private function verifyEmailIdentity($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+  private function deleteIdentity($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
-      $this->setRequestParameter('Action', 'VerifyEmailIdentity');
+      $this->setRequestParameter('Action', 'DeleteIdentity');
       if (isset($actionParameter['identity'])) {
-        $this->setRequestParameter('EmailAddress', $actionParameter['identity']);
+        $this->setRequestParameter('Identity', $actionParameter['identity']);
       }
     }
     else {
       $result = array();
       if ($responseCode == '200') {
-        $result['status'] = KABOOTR_VERIFY_EMAIL_SUCCESS;
-        return $result;
-      }
-    }
-  }
-  
-  /**
-   * Implmetns Query Action SendEmail,
-   * Composes an email message based on input data, and then immediately queues the message for sending.
-   * @param Array $actionParameter SimpleEmailServiceMessage object,
-   * This object contains Destination, Message, ReplyToAddresses.member.N, ReturnPath, Source
-   * @param Boolean $request
-   * @param string $actionResponse
-   * @param string $responseCode
-   * @return Array: returns the verification status
-   * @link For more detail http://docs.aws.amazon.com/ses/latest/APIReference/API_SendEmail.html
-   */
-  
-  private function sendEmail($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
-    // Set query parameter to send http request
-    if ($request && isset($actionParameter['simpleEmailServiceMessage'])) {
-      $simpleEmailServiceMessage = $actionParameter['simpleEmailServiceMessage'];
-      $this->setRequestParameter('Action', 'SendEmail');
-      $i = 1;
-      if ($simpleEmailServiceMessage->to != NULL) {
-        $this->setRequestParameter('Destination.ToAddresses.member.' . $i, $simpleEmailServiceMessage->to);
-      }
-      
-      if ($simpleEmailServiceMessage->replyto != NULL) {
-        $this->setRequestParameter('ReplyToAddresses.member.' . $i, $simpleEmailServiceMessage->replyto);
-      }
-      
-      // $this->setRequestParameter('Source', $simpleEmailServiceMessage->from);
-      $this->setRequestParameter('Source', 'tkuldeep.singh@innoraft.com');
-      
-      if ($simpleEmailServiceMessage->returnpath != NULL) {
-        $this->setRequestParameter('ReturnPath', $simpleEmailServiceMessage->returnpath);
-      }
-      
-      if ($simpleEmailServiceMessage->subject != NULL && strlen($simpleEmailServiceMessage->subject) > 0) {
-        $this->setRequestParameter('Message.Subject.Data', $simpleEmailServiceMessage->subject);
-        if ($simpleEmailServiceMessage->subjectCharset != NULL && strlen($simpleEmailServiceMessage->subjectCharset) > 0) {
-          $this->setRequestParameter('Message.Subject.Content.Charset', $simpleEmailServiceMessage->subjectCharset);
-        }
-      }
-      
-      if ($simpleEmailServiceMessage->messagetext != NULL && strlen($simpleEmailServiceMessage->messagetext) > 0) {
-         $this->setRequestParameter('Message.Body', $simpleEmailServiceMessage->messagetext);
-        if ($simpleEmailServiceMessage->messageTextCharset != NULL && strlen($simpleEmailServiceMessage->messageTextCharset) > 0) {
-          $this->setRequestParameter('Message.Body.Text.Content.Charset', $simpleEmailServiceMessage->messageTextCharset);
-        }
-      }
-      
-      if ($simpleEmailServiceMessage->messagehtml != NULL && strlen($simpleEmailServiceMessage->messagehtml) > 0) {
-        $this->setRequestParameter('Message.Body.Html.Data', $simpleEmailServiceMessage->messagehtml);
-        if ($simpleEmailServiceMessage->messageHtmlCharset != NULL && strlen($simpleEmailServiceMessage->messageHtmlCharset) > 0) {
-          $this->setRequestParameter('Message.Body.Html.Charset', $simpleEmailServiceMessage->messageHtmlCharset);
-        }
-      }
-    }
-      
-    // Parse the http response
-    else {
-      $result = array();
-      if ($responseCode == '200' && isset($actionResponse->MessageId)) {
-        $result['status'] = KABOOTR_MAIL_SENT;
-        $result['error'] = FALSE;
+        $result['status'] = KABOOTR_DELETE_IDENTITY_SUCCESS;
         return $result;
       }
       // Error in response
@@ -274,7 +189,7 @@ Class SimpleEmailService {
         $result['Type'] = $actionResponse->Type;
         $result['Code'] = $actionResponse->Code;
         $result['Message'] = $actionResponse->Message;
-        $result['status'] = KABOOTR_MAIL_NOT_SENT;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
         $result['error'] = TRUE;
         return $result;
       }
@@ -282,56 +197,70 @@ Class SimpleEmailService {
   }
   
   /**
-   * Implmetns Query Action SetIdentityFeedbackForwardingEnabled,
-   * Given an identity (email address or domain), enables or disables whether Amazon SES forwards feedback notifications as email. Feedback forwarding may only be disabled when both complaint and bounce topics are set.
-   *  This action is throttled at one request per second.
-   * @param Array $actionParameter Given identity
+   * Call Query API action GetIdentityNotificationAttributes,
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Given a list of verified identities (email addresses and/or domains)
    * @param Boolean $request
    * @param string $actionResponse
    * @param string $responseCode
-   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_SetIdentityFeedbackForwardingEnabled.html
+   * @return An array describing identity notification attributes.
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_GetIdentityNotificationAttributes.html
    */
-  private function setIdentityFeedbackForwardingEnabled($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+  private function getIdentityDkimAttributes($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
     if ($request) {
-      $this->setRequestParameter('Action', 'SetIdentityFeedbackForwardingEnabled');
-      if (isset($actionParameter['identity'])) {
-        $this->setRequestParameter('Identity', $actionParameter['identity']);
+      $n = 1;
+      $this->setRequestParameter('Action', 'GetIdentityDkimAttributes');
+      if (isset($actionParameter['Identities'])) {
+        foreach ($actionParameter['Identities'] AS $member) {
+          $this->setRequestParameter('Identities.member.' . $n, $member);
+          $n++;
+        }
+      }
+    }
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['error'] = FALSE;
+        $entry = $actionResponse->DkimAttributes->entry;
+        $result['key'] = (string) $entry->key;
+        $result['DkimEnabled'] = (string) $entry->value->DkimEnabled;
+        $result['DkimVerificationStatus'] = (string) $entry->value->DkimVerificationStatus;
+        $dkimTokens = $entry->value->DkimTokens->member;
+        $i = 0;
+        if (strpos($result['key'], '@') != FALSE) {
+          $domain = explode('@', $result['key'])[1];
+        }
+        else {
+          $domain = $result['key'];
+        }
+        foreach ($dkimTokens as $token) {
+          $name = (string) $token . '._domainkey.' . $domain;
+          $value = (string) $token . '.dkim.amazonses.com';
+          $result['member']['row' . $i]['name'] = $name;
+          $result['member']['row' . $i]['value'] = $value;
+          $result['member']['row' . $i]['type'] = 'CNAME';
+          $i ++;
+        }
+        $result['status'] = '';
+        return $result;
       }
       
-      if (isset($actionParameter['forwardingEnabled'])) {
-        $this->setRequestParameter('ForwardingEnabled', $actionParameter['forwardingEnabled']);
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
+        $result['error'] = TRUE;
+        return $result;
       }
-     
     }
   }
   
   /**
-   * Implmetns Query Action SetIdentityNotificationTopic,
-   * Given an identity (email address or domain), sets the Amazon SNS topic to which Amazon SES will publish bounce and complaint notifications for emails sent with that identity as the Source. Publishing to topics may only be disabled when feedback forwarding is enabled.
+   * Call Query API action GetIdentityNotificationAttributes,
    * This action is throttled at one request per second.
-   * @param Array $actionParameter Given identity
-   * @param Boolean $request
-   * @param string $actionResponse
-   * @param string $responseCode
-   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_SetIdentityNotificationTopic.html
-   */
-  private function setIdentityNotificationTopic($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
-    if ($request) {
-      $this->setRequestParameter('Action', 'SetIdentityNotificationTopic');
-      if (isset($actionParameter['identity'])) {
-        $this->setRequestParameter('Identity', $actionParameter['identity']);
-      }
-      
-      if (isset($actionParameter['snsTopic'])) {
-        $this->setRequestParameter('SnsTopic', $actionParameter['snsTopic']);
-      }
-    }
-  
-  }
-  
-   /**
-   * Implmetns Query Action GetIdentityNotificationAttributes,
-   * This action is throttled at one request per second.
+   * 
    * @param Array $actionParameter Given a list of verified identities (email addresses and/or domains)
    * @param Boolean $request
    * @param string $actionResponse
@@ -351,8 +280,66 @@ Class SimpleEmailService {
     }
   }
 
+ /**
+   * Call Query API action GetIdentityVerificationAttributes,
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Given a list of identities (email addresses and/or domains), 
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return Array: The verification status and (for domain
+   *   identities) the verification token for each identity.
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_GetIdentityVerificationAttributes.html  
+   */
+  private function getIdentityVerificationAttributes($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $n = 1;
+      $this->setRequestParameter('Action', 'GetIdentityVerificationAttributes');
+      if (isset($actionParameter['Identities'])) {
+        foreach ($actionParameter['Identities'] as $member) {
+          $this->setRequestParameter('Identities.member.' . $n, $member);
+          $n++;
+        }
+      }
+    }
+    // Parse the http response
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['error'] = FALSE;
+        $entries = $actionResponse->VerificationAttributes->entry;
+        $i = 0;
+        foreach ($entries as $entry) {
+          $result['row' . $i]['key'] = (string)$entry->key;
+          $value = $entry->value;
+          if (isset($value->VerificationStatus)) {
+          	$result['row' . $i]['VerificationStatus'] = (string)$value->VerificationStatus;
+          }
+          // The verification token for a domain identity. Null for email address identities.
+          if (isset($value->VerificationToken)) {
+            $domain = $result['row' . $i]['key'];
+            $domain_record_set = "<div class = ''><b>Name: </b> _amazonses.{$domain} <br>
+                                 <b>Type:</b> TXT <br>
+                                 <b>Value:</b> {$value->VerificationToken}";
+          	$result['row' . $i]['DomainRecordSet'] = $domain_record_set;
+          }
+          $i++;
+        }
+        return $result;
+      }
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;;
+        $result['error'] = TRUE;
+        return $result;
+      }
+    }
+  }
   /**
-   * Implmetns Query Action GetSendStatistics,
+   * Call Query API action GetSendStatistics,
    * The result is a list of data points, representing the last two weeks of sending activity.
    * Each data point in the list contains statistics for a 15-minute interval.
    * This action is throttled at one request per second.
@@ -391,7 +378,7 @@ Class SimpleEmailService {
         $result['Type'] = $actionResponse->Type;
         $result['Code'] = $actionResponse->Code;
         $result['Message'] = $actionResponse->Message;
-        $result['status'] = KABOOTR_MAIL_NOT_SENT;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
         $result['error'] = TRUE;
         return $result;
       }
@@ -399,7 +386,7 @@ Class SimpleEmailService {
   }
   
   /**
-   * Implmetns Query Action GetSendQuota,
+   * Call Query API action GetSendQuota,
    * This action is throttled at one request per second.
    * @param Array $actionParameter Empty array
    * @param Boolean $request
@@ -417,9 +404,9 @@ Class SimpleEmailService {
       $result = array();
       if ($responseCode == '200') {
         $result['error'] = FALSE;
-        $result['SentLast24Hours'] = $actionResponse->SentLast24Hours;
-        $result['Max24HourSend'] = $actionResponse->Max24HourSend;
-        $result['MaxSendRate'] = $actionResponse->MaxSendRate;
+        $result['SentLast24Hours'] = (string)$actionResponse->SentLast24Hours;
+        $result['Max24HourSend'] = (string)$actionResponse->Max24HourSend;
+        $result['MaxSendRate'] = (string)$actionResponse->MaxSendRate;
         return $result;
       }
       // Error in response
@@ -427,7 +414,294 @@ Class SimpleEmailService {
         $result['Type'] = $actionResponse->Type;
         $result['Code'] = $actionResponse->Code;
         $result['Message'] = $actionResponse->Message;
-        $result['status'] = KABOOTR_MAIL_NOT_SENT;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
+        $result['error'] = TRUE;
+        return $result;
+      }
+    }
+  }
+  
+  /**
+   * Call Query API action ListIdentities,
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter The type of the identities to list or all
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return A list containing all of the identities (email addresses and domains) for a specific AWS Account,
+   *  regardless of verification status.
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_GetSendQuota.html
+   */
+  private function listIdentities($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'ListIdentities');
+      if (isset($actionParameter['IdentityType'])) {
+      $this->setRequestParameter('IdentityType', $actionParameter['IdentityType']);
+      }
+      if (isset($actionParameter['MaxItems'])) {
+        $this->setRequestParameter('MaxItems', $actionParameter['MaxItems']);
+      }
+      if (isset($actionParameter['NextToken'])) {
+        $this->setRequestParameter('NextToken', $actionParameter['NextToken']);
+      }
+    }
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['error'] = FALSE;
+        $members = $actionResponse->Identities->member;
+        foreach ($members as $member) {
+          $result['member'][] = (string)$member;
+        }
+        return $result;
+      }
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
+        $result['error'] = TRUE;
+        return $result;
+      }
+    }
+  }
+  
+  /**
+   * Call Query API action SendEmail,
+   * Composes an email message based on input data, and then immediately queues the message for sending.
+   * @param Array $actionParameter SimpleEmailServiceMessage object,
+   * This object contains Destination, Message, ReplyToAddresses.member.N, ReturnPath, Source
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return Array: returns the verification status
+   * @link For more detail http://docs.aws.amazon.com/ses/latest/APIReference/API_SendEmail.html
+   */
+  
+  private function sendEmail($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    // Set query parameter to send http request
+    if ($request && isset($actionParameter['simpleEmailServiceMessage'])) {
+      $simpleEmailServiceMessage = $actionParameter['simpleEmailServiceMessage'];
+      $this->setRequestParameter('Action', 'SendEmail');
+      $i = 1;
+      if ($simpleEmailServiceMessage->to != NULL) {
+        $this->setRequestParameter('Destination.ToAddresses.member.' . $i, $simpleEmailServiceMessage->to);
+      }
+  
+      if ($simpleEmailServiceMessage->replyto != NULL) {
+        $this->setRequestParameter('ReplyToAddresses.member.' . $i, $simpleEmailServiceMessage->replyto);
+      }
+  
+      // $this->setRequestParameter('Source', $simpleEmailServiceMessage->from);
+      $this->setRequestParameter('Source', 'tkuldeep.singh@innoraft.com');
+  
+      if ($simpleEmailServiceMessage->returnpath != NULL) {
+        $this->setRequestParameter('ReturnPath', $simpleEmailServiceMessage->returnpath);
+      }
+  
+      if ($simpleEmailServiceMessage->subject != NULL && strlen($simpleEmailServiceMessage->subject) > 0) {
+        $this->setRequestParameter('Message.Subject.Data', $simpleEmailServiceMessage->subject);
+        if ($simpleEmailServiceMessage->subjectCharset != NULL && strlen($simpleEmailServiceMessage->subjectCharset) > 0) {
+          $this->setRequestParameter('Message.Subject.Content.Charset', $simpleEmailServiceMessage->subjectCharset);
+        }
+      }
+  
+      if ($simpleEmailServiceMessage->messagetext != NULL && strlen($simpleEmailServiceMessage->messagetext) > 0) {
+        $this->setRequestParameter('Message.Body', $simpleEmailServiceMessage->messagetext);
+        if ($simpleEmailServiceMessage->messageTextCharset != NULL && strlen($simpleEmailServiceMessage->messageTextCharset) > 0) {
+          $this->setRequestParameter('Message.Body.Text.Content.Charset', $simpleEmailServiceMessage->messageTextCharset);
+        }
+      }
+  
+      if ($simpleEmailServiceMessage->messagehtml != NULL && strlen($simpleEmailServiceMessage->messagehtml) > 0) {
+        $this->setRequestParameter('Message.Body.Html.Data', $simpleEmailServiceMessage->messagehtml);
+        if ($simpleEmailServiceMessage->messageHtmlCharset != NULL && strlen($simpleEmailServiceMessage->messageHtmlCharset) > 0) {
+          $this->setRequestParameter('Message.Body.Html.Charset', $simpleEmailServiceMessage->messageHtmlCharset);
+        }
+      }
+    }
+  
+    // Parse the http response
+    else {
+      $result = array();
+      if ($responseCode == '200' && isset($actionResponse->MessageId)) {
+        $result['status'] = KABOOTR_MAIL_SENT;
+        $result['error'] = FALSE;
+        return $result;
+      }
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
+        $result['error'] = TRUE;
+        return $result;
+      }
+    }
+  }
+  
+  /**
+   * Call Query API action SetIdentityFeedbackForwardingEnabled,
+   * Given an identity (email address or domain), enables or disables whether Amazon SES forwards feedback notifications as email. Feedback forwarding may only be disabled when both complaint and bounce topics are set.
+   *  This action is throttled at one request per second.
+   * @param Array $actionParameter Given identity
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_SetIdentityFeedbackForwardingEnabled.html
+   */
+  private function setIdentityFeedbackForwardingEnabled($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'SetIdentityFeedbackForwardingEnabled');
+      if (isset($actionParameter['identity'])) {
+        $this->setRequestParameter('Identity', $actionParameter['identity']);
+      }
+  
+      if (isset($actionParameter['forwardingEnabled'])) {
+        $this->setRequestParameter('ForwardingEnabled', $actionParameter['forwardingEnabled']);
+      }
+    }
+  }
+  
+  /**
+   * Call Query API action SetIdentityNotificationTopic,
+   * Given an identity (email address or domain), sets the Amazon SNS topic to which Amazon SES will publish bounce and complaint notifications for emails sent with that identity as the Source. Publishing to topics may only be disabled when feedback forwarding is enabled.
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Given identity
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_SetIdentityNotificationTopic.html
+   */
+  private function setIdentityNotificationTopic($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'SetIdentityNotificationTopic');
+      if (isset($actionParameter['identity'])) {
+        $this->setRequestParameter('Identity', $actionParameter['identity']);
+      }
+  
+      if (isset($actionParameter['snsTopic'])) {
+        $this->setRequestParameter('SnsTopic', $actionParameter['snsTopic']);
+      }
+    }
+  
+  }
+  
+  /**
+   * Call Query API action VerifyDomainDkim,
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Empty array
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return A set of DKIM tokens for a domain,
+   * DKIM tokens are character strings that represent your domain's
+   * identity. Using these tokens, you will need to create DNS CNAME records that point to DKIM public keys
+   * hosted by Amazon SES. 
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_VerifyDomainDkim.html
+   */
+  private function verifyDomainDkim($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'VerifyDomainDkim');
+      if (isset($actionParameter['Domain'])) {
+        $this->setRequestParameter('Domain', $actionParameter['Domain']);
+      }
+    }
+    // Parse the http response
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['error'] = FALSE;
+        $dkimTokens = $actionResponse->DkimTokens;
+        foreach ($dkimTokens AS $member) {
+          $result[]['member'] = (string)$member;
+        }
+        return $result;
+      }
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
+        $result['error'] = TRUE;
+        return $result;
+      }
+    }
+  }
+  
+  /**
+   * Call Query API action VerifyEmailIdentity,
+   * Verifies an email address. This action causes a confirmation email message to be sent to the specified
+   * address. This action is throttled at one request per second.
+   * @param Array $actionParameter Given a identitiy(email addresse or domain),
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return Array: the verification status
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_VerifyEmailIdentity.html
+   */
+  private function verifyEmailIdentity($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'VerifyEmailIdentity');
+      if (isset($actionParameter['EmailAddress'])) {
+        $this->setRequestParameter('EmailAddress', $actionParameter['EmailAddress']);
+      }
+    }
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['error'] = FALSE;
+        $result['status'] = KABOOTR_VERIFY_EMAIL_SUCCESS;
+        return $result;
+      }
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
+        $result['error'] = TRUE;
+        return $result;
+      }
+    }
+  }
+  
+  /**
+   * Call Query API action VerifyDomaindentity,
+   * Verifies a domain. 
+   * This action is throttled at one request per second.
+   * @param Array $actionParameter Given a identitiy(email addresse or domain),
+   * @param Boolean $request
+   * @param string $actionResponse
+   * @param string $responseCode
+   * @return Array: A TXT record that must be placed in the DNS settings for the domain, in order to complete domain
+      verification.
+   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_VerifyDomainIdentity.html
+   */
+  private function verifyDomainIdentity($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
+    if ($request) {
+      $this->setRequestParameter('Action', 'VerifyDomainIdentity');
+      if (isset($actionParameter['Domain'])) {
+        $this->setRequestParameter('Domain', $actionParameter['Domain']);
+      }
+    }
+    else {
+      $result = array();
+      if ($responseCode == '200') {
+        $result['error'] = FALSE;
+        $result['status'] = KABOOTR_VERIFY_DOMAIN_SUCCESS;
+        $result['token'] = (string)$actionResponse->VerificationToken;
+        return $result;
+      }
+      // Error in response
+      else {
+        $result['Type'] = $actionResponse->Type;
+        $result['Code'] = $actionResponse->Code;
+        $result['Message'] = $actionResponse->Message;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
         $result['error'] = TRUE;
         return $result;
       }
