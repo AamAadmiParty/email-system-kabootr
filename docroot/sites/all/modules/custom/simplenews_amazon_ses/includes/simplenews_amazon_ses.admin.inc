@@ -238,9 +238,12 @@ function get_verified_list($identity_type = NULL, $bol = TRUE) {
   }
   
   if (!isset($_SESSION['amazon_verified_list'])) {
+    
     if ($identity_type != NULL) {
       $actionParameter['IdentityType'] = $identity_type;
     }
+    
+    $_SESSION['amazon_verified_list'] = NULL;
     $result = NULL;
     $actionParameter['MaxItems'] = 10;
     module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
@@ -321,6 +324,7 @@ if ($identity_type == 'Domain') {
                   <li><b>Note:</b> The link in the verification message expires 24 hours after your original verification request.</li>
                   <li>The status of the email address in the Amazon SES console will change from <b>Pending</b> to <b>Verified</b>.</li><br></br>";
   }
+  
   $form['amazon_list_identities_update']['list_table']['#options'] = $_SESSION['amazon_verified_list'];
   return $form; 
 }
@@ -596,104 +600,3 @@ function amazon_domain_dkim_enable_form_validate($form, &$form_state) {
     }
   }
 }
-/**
- * 
- */
- function amazon_domain_dkim_list_form($form, $form_state) {
-   $form['amazon_list_identities_filter'] = array(
-       '#type' => 'fieldset',
-       '#title' => t('Identites belongs to'),
-       '#collapsed' => FALSE,
-       '#attributes' => array('class' => array('container-inline')),
-   );
-   $form['amazon_list_identities_filter']['select_indentity'] = array(
-       '#type' => 'select',
-       '#title' => t(''),
-       '#options' => array(
-           'Any' => 'Any',
-           'EmailAddress' => 'Email Address',
-           'Domain' => 'Domain Name'
-       ),
-       '#default_value' => array('EmailAddress'),
-   
-   );
-   $form['amazon_list_identities_filter']['filter_identity_list'] = array(
-       '#type' => 'button',
-       '#value' => t('Filter'),
-   );
-   
-   // Set default values
-   $options = NULL;
-   $header = array(
-       'key' => 'Email Address',
-       'VerificationStatus' => 'Status'
-   );
-   
-   // If Identity type is selected
-   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
-   if (isset($form_state['values']['select_indentity'])) {
-     $identity_type = $form_state['values']['select_indentity'];
-     $actionParameter['IdentityType'] = $identity_type;
-   }
-   $actionParameter['MaxItems'] = 10;
-   $result = simplenews_amazon_ses_send_request('ListIdentities', $actionParameter);
-    
-  // Display the response of calling of Amazon SES API
-  if (isset($result['status'])) {
-    switch($result['status']) {
-      case KABOOTR_AMAZON_REQUEST_EXCEPTION :
-        $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
-                    please check your network connection or try after some time.', array(
-            '!action' => "ListIdentities"
-        ));
-        drupal_set_message($message, 'error');
-        break;
-      
-      case KABOOTR_AMAZON_REQUEST_FAILURE :
-        $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
-                    missing some parameter or Request is not valid.', array(
-            '!action' => "ListIdentities"
-        ));
-        drupal_set_message($message, 'error');
-        break;
-    }
-  }
-    
-  // This action is throttled at one request per second.
-  // Wait for 1 second
-  sleep(1);
-  unset($actionParameter);
-  if (isset($result['member'])) {
-    $actionParameter['Identities'] = $result['member'];
-    $result = simplenews_amazon_ses_send_request('GetIdentityDkimAttributes', $actionParameter);
-    $options = $result;
-    // Display the response of calling of Amazon SES API
-    if (isset($result['status'])) {
-      switch($result['status']) {
-        case KABOOTR_AMAZON_REQUEST_EXCEPTION :
-          $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
-                    please check your network connection or try after some time.', array(
-              '!action' => "ListIdentities"
-          ));
-          drupal_set_message($message, 'error');
-          break;
-        
-        case KABOOTR_AMAZON_REQUEST_FAILURE :
-          $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
-                    missing some parameter or Request is not valid.', array(
-              '!action' => "ListIdentities"
-          ));
-          drupal_set_message($message, 'error');
-          break;
-      }
-    }
-  }
-   
-  /*  $form['list_table'] = array(
-       '#type' => 'tableselect',
-       '#header' => $header,
-       '#options' => $options,
-       '#empty' => t('No content available.'),
-   ); */
-   return $form;
- } 

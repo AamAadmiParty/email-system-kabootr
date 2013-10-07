@@ -242,7 +242,7 @@ Class SimpleEmailService {
           $result['member']['row' . $i]['type'] = 'CNAME';
           $i ++;
         }
-        $result['status'] = '';
+        $result['status'] = KABOOTR_AMAZON_REQUEST_SUCCESS;
         return $result;
       }
       
@@ -450,9 +450,11 @@ Class SimpleEmailService {
       $result = array();
       if ($responseCode == '200') {
         $result['error'] = FALSE;
-        $members = $actionResponse->Identities->member;
-        foreach ($members as $member) {
-          $result['member'][] = (string)$member;
+        if (isset($actionResponse->Identities->member)) {
+          $members = $actionResponse->Identities->member;
+          foreach ($members as $member) {
+            $result['member'][] = (string) $member;
+          }
         }
         return $result;
       }
