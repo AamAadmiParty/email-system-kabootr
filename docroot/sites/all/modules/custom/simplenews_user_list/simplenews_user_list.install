@@ -12,12 +12,11 @@ function simplenews_user_list_schema() {
   $schema['simplenews_user_list'] = array(
       'description' => 'Newsletter users category list data.',
       'fields' => array(
-          'sul_id' => array(
-              'description' => 'Primary key: Unique subscriber list ID.',
-              'type' => 'serial',
-              'size' => 'small',
-              'unsigned' => TRUE,
-              'not null' => TRUE
+          'tid' => array(
+              'description' => 'The category ({simplenews_category}.tid) the users_list subscribers are subscribed to.',
+              'type' => 'int',
+              'not null' => TRUE,
+              'default' => 0
           ),
           'user_filters' => array(
               'description' => 'Contain sql_query which will form uids',
@@ -26,22 +25,10 @@ function simplenews_user_list_schema() {
               'size' => 'normal',
               'serialize' => TRUE
           ),
-          'tid' => array(
-              'description' => 'The category ({simplenews_category}.tid) the users_list subscribers are subscribed to.',
-              'type' => 'int',
-              'not null' => TRUE,
-              'default' => 0
-          ),
-          'created' => array(
-              'description' => 'UNIX timestamp of when the subscription record was added.',
-              'type' => 'int',
-              'unsigned' => TRUE,
-              'not null' => TRUE,
-              'default' => 0
-          )
       ),
+      
       'primary key' => array(
-          'sul_id'
+          'tid'
       ),
       'foreign key' => array(
           'tid' => array(

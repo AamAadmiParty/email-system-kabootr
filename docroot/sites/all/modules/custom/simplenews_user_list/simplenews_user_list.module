@@ -29,6 +29,7 @@ function simplenews_user_list_form_alter(&$form, &$form_state, $form_id) {
     // The id's of form user filter has been set to it's user field ID.
     $master_newsletter_tid = variable_get('master_simplenews_category', '');
     if ($newsletter_tid != $master_newsletter_tid) {
+      
       $users_filters = simplenews_user_list_create_user_filters($newsletter_tid);
       if ($users_filters != NULL) {
         foreach ($users_filters as $f_key => $f_value) {
