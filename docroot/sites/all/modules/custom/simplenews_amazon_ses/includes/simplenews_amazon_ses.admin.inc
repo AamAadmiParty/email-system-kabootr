@@ -76,8 +76,12 @@ function amazon_identity_verify_form($form, &$form_state) {
   );
   return $form; 
 }
-function amazon_identity_verify_form_callback($form, &$form_state) {
-  /* if (isset($form_state['values']['identity_type'])) {
+
+/**
+ * ajax callback for amazon_identity_verify_form
+ */
+/* function amazon_identity_verify_form_callback($form, &$form_state) {
+  if (isset($form_state['values']['identity_type'])) {
     $identity_type = $form_state['values']['identity_type'];
     switch($identity_type) {
       case 'email' :
@@ -88,11 +92,12 @@ function amazon_identity_verify_form_callback($form, &$form_state) {
         break;
     }
   }
-  return $form['amazon_ses_service']['ajax_region']; */
-}
+  return $form['amazon_ses_service']['ajax_region'];
+} */
 
 /**
  * Form validation callback for amazon identity request form.
+ * validate domain name and email address, based on type of identity
  */
 function amazon_identity_verify_form_validate($form, &$form_state) {
  if (isset($form_state['values']['identity_type'])) {
@@ -122,7 +127,7 @@ function amazon_identity_verify_form_validate($form, &$form_state) {
  */
 function amazon_identity_verify_form_submit($form, &$form_state) {
     
-    // Send Request to amzon SES API
+  // Send Request to amzon SES API
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
   if (($form_state['clicked_button']['#value']) == 'Send Request') {
     if (isset($form_state['values']['identity_type'])) {
@@ -181,73 +186,32 @@ function amazon_identity_verify_form_submit($form, &$form_state) {
 /**
  * Retrieve sender identities and their status
  */
-function get_verified_list($identity_type = NULL, $bol = TRUE) {
+function get_indentity_list($identity_type = NULL) {
   
-  // Headers of table, when Identity type is Domain
-  if ($identity_type == 'Domain') {
-    $header = array(
-        'key' => 'Domain Name',
-        'VerificationStatus' => 'Status',
-        'DomainRecordSet' => 'Domain Verification Record Set',
-    );
-  }
-  else {
-    $header = array(
-        'key' => 'Email Address',
-        'VerificationStatus' => 'Status'
-    );
-  }
-  
-  $form['amazon_list_identities_filter'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('Identites belongs to'),
-      '#collapsed' => FALSE,
-      '#attributes' => array('class' => array('container-inline')),
-  );
-  $form['amazon_list_identities_filter']['select_indentity'] = array(
-      '#type' => 'select',
-      '#title' => t(''),
-      '#options' => array(
-          'EmailAddress' => 'Email Address',
-          'Domain' => 'Domain',
-      ),
-  );
-  $form['amazon_list_identities_filter']['filter_identity_list'] = array(
-      '#type' => 'button',
-      '#value' => t('Filter'),
-  );
-  // Update Option
-  $form['amazon_list_identities_update'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('Verified Idenities'),
-      '#collapsed' => FALSE,
-      '#attributes' => array('class' => array('container-inline')),
-  );
-  $form['amazon_list_identities_update']['list_table'] = array(
-      '#type' => 'tableselect',
-      '#header' => $header,
-      '#options' => NULL,
-      '#empty' => t('No content available.'),
-  );
-  
-  //Get selected identity from session
-  if (isset($_SESSION['amazon_selected_identity'])) {
-  	$identity_type = $_SESSION['amazon_selected_identity'];
-  	$actionParameter['IdentityType'] = $identity_type;
-  	unset($_SESSION['amazon_selected_identity']);
-  }
-  
-  if (!isset($_SESSION['amazon_verified_list'])) {
-    
+  // If sender's identity is not exist in session, then send the request to amazon ses api to fetch it
+  // and decide which type of identity is required Email Adress or Domain Name 
+  if (!isset($_SESSION['amazon_identity_list'])) {
+
+    // If identity type is not specified, then fetch both identites email and domain, for this we will not send 
+    // parameter 'IdentityType' in http request
     if ($identity_type != NULL) {
       $actionParameter['IdentityType'] = $identity_type;
     }
     
-    $_SESSION['amazon_verified_list'] = NULL;
+    // When user verify his sender identity, he should be redireted to Identity List page showing all verified identited
+    // of type he had sent request, may be Domain or Email Address
+    if (isset($_SESSION['amazon_selected_identity'])) {
+      $identity_type = $_SESSION['amazon_selected_identity'];
+      $actionParameter['IdentityType'] = $identity_type;
+      unset($_SESSION['amazon_selected_identity']);
+    }
+    
+    $_SESSION['amazon_identity_list'] = NULL;
     $result = NULL;
     $actionParameter['MaxItems'] = 10;
     module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
     $result = simplenews_amazon_ses_send_request('ListIdentities', $actionParameter);
+
     // Display the response of calling of Amazon SES API
     if (isset($result['status'])) {
       switch($result['status']) {
@@ -302,30 +266,78 @@ function get_verified_list($identity_type = NULL, $bol = TRUE) {
         }
       }
       unset($options['error']);
-      $_SESSION['amazon_verified_list'] = $options;
+      $_SESSION['amazon_identity_list'] = $options;
     }
   }
-
-if ($identity_type == 'Domain') {
+  
+  // Form filter component
+  $form['amazon_list_identities_filter'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Identites belongs to'),
+      '#collapsed' => FALSE,
+      '#attributes' => array('class' => array('container-inline')),
+  );
+  $form['amazon_list_identities_filter']['select_indentity'] = array(
+      '#type' => 'select',
+      '#title' => t(''),
+      '#options' => array(
+          'EmailAddress' => 'Email Address',
+          'Domain' => 'Domain',
+      ),
+      '#default_value' => array($identity_type),
+  );
+  $form['amazon_list_identities_filter']['filter_identity_list'] = array(
+      '#type' => 'button',
+      '#value' => t('Filter'),
+  );
+  
+  // Form component when Identity type is Domain
+  if ($identity_type == 'Domain') {
+    $header = array(
+        'key' => 'Domain Name',
+        'VerificationStatus' => 'Status',
+        'DomainRecordSet' => 'Domain Verification Record Set',
+    );
+    
     $learn_more = l('Learn more about verifying Emails in Amazon SES', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-email-addresses.html');
     $form['amazon_list_identities_filter']['#description'] = "To complete domain verification, you must add a <b>TXT</b> record with the displayed <b>Name</b> and <b>Value</b> to
-                  your domain's DNS settings.<br> <b>Note: </b>Some domain name providers use the term <b>Host</b> instead of
-                  <b>Name</b>. If your DNS provider does not allow underscores in record names, you can omit the
-                  underscore before amazonses in the TXT record name. <br>
-                  When verification is complete, the domain's status in the Amazon SES console will change from
-                  <b>Pending</b> to <b>Verified</b>, and you will receive an Amazon SES Domain Verification
-                  SUCCESS confirmation email from Amazon Web Services. (Amazon Web Services emails are sent
-                  to the email address you used when you signed up for Amazon SES.) {$learn_more}.<br></br>";
+    your domain's DNS settings.<br> <b>Note: </b>Some domain name providers use the term <b>Host</b> instead of
+    <b>Name</b>. If your DNS provider does not allow underscores in record names, you can omit the
+    underscore before amazonses in the TXT record name. <br>
+    When verification is complete, the domain's status in the Amazon SES console will change from
+    <b>Pending</b> to <b>Verified</b>, and you will receive an Amazon SES Domain Verification
+    SUCCESS confirmation email from Amazon Web Services. (Amazon Web Services emails are sent
+    to the email address you used when you signed up for Amazon SES.) {$learn_more}.<br></br>";
   }
-  elseif ($identity_type == 'EmailAddress') {
+  
+  // Form component when Identity type is Email Address
+  else {
+    $header = array(
+        'key' => 'Email Address',
+        'VerificationStatus' => 'Status'
+    );
+    
     $learn_more = l('Learn more about verifying domain in Amazon SES', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-domains.html');
     $form['amazon_list_identities_filter']['#description'] = "<li>In your email client, open the message from Amazon SES asking you to confirm that you are the owner of this email address.</li>
-                  <li>Click the link in the message.</li> 
+                  <li>Click the link in the message.</li>
                   <li><b>Note:</b> The link in the verification message expires 24 hours after your original verification request.</li>
                   <li>The status of the email address in the Amazon SES console will change from <b>Pending</b> to <b>Verified</b>.</li><br></br>";
   }
   
-  $form['amazon_list_identities_update']['list_table']['#options'] = $_SESSION['amazon_verified_list'];
+  // Form Update component
+  $form['amazon_list_identities_update'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Verified Idenities'),
+      '#collapsed' => FALSE,
+      '#attributes' => array('class' => array('container-inline')),
+  );
+  $form['amazon_list_identities_update']['list_table'] = array(
+      '#type' => 'tableselect',
+      '#header' => $header,
+      '#options' => $_SESSION['amazon_identity_list'],
+      '#empty' => t('No content available.'),
+  );
+  
   return $form; 
 }
 
@@ -335,24 +347,26 @@ if ($identity_type == 'Domain') {
  */
 function amazon_identity_list_form($form, &$form_state) {
   
+  // Set default identity type to Email Address
+  $identity_type = 'EmailAddress';
+  
+  // If form is rubuild, then for fetching idenitity list should not send again request to Amazon Query API action
   if (!$form_state['rebuild']) {
-    unset($_SESSION['amazon_verified_list']);
+    unset($_SESSION['amazon_identity_list']);
   }
   
-  // If Identity type is selected, verified identies must be again reterieved
-  // If filter button is clicked,
+  // When filter button is clicked, mean user wants to fetch new verified  list, so remove the
+  // existing identity list
   if (isset($form_state['clicked_button']['#value'])) {
     if ($form_state['clicked_button']['#value'] == 'Filter') {
-    		unset($_SESSION['amazon_verified_list']);
+      $identity_type = $form_state['values']['select_indentity'];
+    	unset($_SESSION['amazon_identity_list']);
     }
   }
   
-  // If Identity type is selected
-  $identity_type = 'EmailAddress';
-  if (isset($form_state['values']['select_indentity'])) {
-    $identity_type = $form_state['values']['select_indentity'];
-  }
-  $form = get_verified_list($identity_type);
+  // Reterieve identity list by sending request to amazon SES API if required else from existing list stored in session
+  $form = get_indentity_list($identity_type);
+  
   if (isset($form['exception'])) {
     return '';
   }
@@ -366,13 +380,11 @@ function amazon_identity_list_form($form, &$form_state) {
       '#value' => t('Send Request'),
   );
   
-  $form['amazon_list_identities_filter']['select_indentity']['#default_value'] = array($identity_type); 
-  
   return $form;
 }
 
 /**
- *
+ * When sending request to call amazon ses API, validate user can select maximum 5 indentities
  */
 function amazon_identity_list_form_validate($form, &$form_state) {
   $selected_identities = array_filter($form_state['values']['list_table']);
@@ -382,8 +394,9 @@ function amazon_identity_list_form_validate($form, &$form_state) {
   	return '';
   }
 }
+
 /**
- * 
+ * Send request to amazon ses api to delete sender's identities
  */
 function amazon_identity_list_form_submit($form, &$form_state) {
   $selected_identities = array_filter($form_state['values']['list_table']);
@@ -403,7 +416,7 @@ function amazon_identity_list_form_submit($form, &$form_state) {
       if (isset($result['status'])) {
         switch($result['status']) {
           case KABOOTR_DELETE_IDENTITY_SUCCESS :
-            $message = t('Identity !identity is deleted successfully from Amazon.', array(
+            $message = t('Identity !identity is deleted successfully from Amazon SES.', array(
                 '!identity' => $actionParameter['identity']
             ));
             drupal_set_message($message, 'status');
@@ -431,7 +444,8 @@ function amazon_identity_list_form_submit($form, &$form_state) {
 }
 
  /**
-  * Display Sending Quota and Statistics data
+  * Display Sending Quota and Statistics data.
+  * Sendign Quota and statistics should be displayed to user in better GUI and user of graph
   */
 function amazon_get_mail_statistics_form($form, $form_state) { 
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
@@ -506,26 +520,27 @@ function amazon_get_mail_statistics_form($form, $form_state) {
  */
 function amazon_domain_dkim_enable_form($form, &$form_state) {
   
+  // Set default identity type to Email Address
+ $identity_type = 'Domain';
+  
   // Form will be rebuild, when we click on Get Token, then there is no need of again sending request to
   // get verified identies, it will be reterieved form session
   if (!$form_state['rebuild']) {
-  	unset($_SESSION['amazon_verified_list']);
+  	unset($_SESSION['amazon_identity_list']);
   }
   
-  // If Identity type is selected, verified identies must be again reterieved
-  // If filter button is clicked,
+  // When filter button is clicked, mean user wants to fetch new verified  list, so remove the
+  // existing identity list
   if (isset($form_state['clicked_button']['#value'])) {
   	if ($form_state['clicked_button']['#value'] == 'Filter') {
-  		unset($_SESSION['amazon_verified_list']);
+  	  $identity_type = $form_state['values']['select_indentity'];
+  		unset($_SESSION['amazon_identity_list']);
   	}
   } 
-  $identity_type = 'Domain';
-  if (isset($form_state['values']['select_indentity'])) {
-    $identity_type = $form_state['values']['select_indentity'];
-  }
  
-  // Retrieve verified list
-  $form = get_verified_list($identity_type);
+  // Reterieve identity list by sending request to amazon SES API if required else from existing list stored in session
+  $form = get_indentity_list($identity_type);
+  
   if (isset($form['exception'])) {
   	return '';
   }
@@ -560,6 +575,8 @@ function amazon_domain_dkim_enable_form($form, &$form_state) {
       'effect' => 'fade',
       'method' => 'html',
   );
+  
+  // Form component showing DKIM records
   $header = array(
       'name' => 'Name',
       'type' => 'Type',

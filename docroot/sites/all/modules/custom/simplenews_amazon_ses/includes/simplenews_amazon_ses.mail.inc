@@ -138,7 +138,7 @@ function simplenews_amazon_ses_send_source(SimplenewsSpool $spool = NULL) {
  * After sending request, it parse the http response returned by Amazon API call
  * @param $qyeryAction Name of Action which is to be called,
  *        $actionParameter Additonal parameter needed to complete the call Amazon SES API
- * @return Parsed http response, used to display to user or to take system apporpriate aciton 
+ * @return Parsed http response, used to display to user or to take system appropriate aciton 
  */
 function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
   $result = NULL;
@@ -169,7 +169,6 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
   	    $msid = (string)$e['request']->getHeader('msid');
   	    $queryAction = (string) $e['request']->getHeader('Action');
   	    $response_string = (string) $e['response']->getBody();
-  	   // dpm($response_string);
   	    $http_response_xml = simplexml_load_string($response_string);
   	    
   	    // If there is error in response

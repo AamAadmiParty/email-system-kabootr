@@ -89,23 +89,13 @@ function simplenews_amazon_ses_menu() {
       'title' => 'DKIM Setting',
       'type' => MENU_LOCAL_TASK,
       'access arguments' => array('amazon_ses_configuration'),
-      'page callback' => 'amazon_domain_dkim_setting',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('amazon_domain_dkim_enable_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
   return $items;
 }
 
-function amazon_identity_verify() {
-  $output = array();
-  $output['amazon_identity_request'] = drupal_get_form('amazon_identity_request_form');
-  return $output;
-}
-
-function amazon_domain_dkim_setting() {
-  $output = array();
-  $output['amazon_domain_dkim_verify'] = drupal_get_form('amazon_domain_dkim_enable_form');
-  return $output;
-}
 /**
  * 
  * @param unknown $form
@@ -115,25 +105,32 @@ function amazon_domain_dkim_setting() {
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
   
-//  drupal_goto('amazon_identity_list_form');
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
  // simplenews_amazon_ses_send_source();
  // This function will be invoed in corn, which send mail via amazon
  //simplenews_amazon_ses_mail_spool(); 
+ 
   // Add validation, if sender's mail is verified by Amazon SES
   if ($form_id == 'simplenews_admin_category_form') {
     $form['simplenews_sender_information']['from_address']['#element_validate'] = array('verify_email_identity_amazon');
   }
+  
+  // Display domain records required in DKIM setting, 
   if ($form_id == 'amazon_domain_dkim_enable_form') {
     if (isset($form_state['values'])) {
+      
+      // When user clicks on Send Request button
       module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
       if (($form_state['clicked_button']['#value']) == 'Send Request') {
         $selected_row = $form_state['values']['list_table'];
         $actionParameter['Identities'] = array(
             $form_state['complete form']['amazon_list_identities_update']['list_table']['#options'][$selected_row]['key']
         );
+        
+        // Call of amazon Query API action GetIdentityDkimAttributes
         $result = simplenews_amazon_ses_send_request('GetIdentityDkimAttributes', $actionParameter); // This request is throttled per second
 
+        // Display the result in table returned by Amazon SES
         if (isset($result['status'])) {
           switch($result['status']) {
           	case KABOOTR_AMAZON_REQUEST_SUCCESS :
@@ -190,7 +187,11 @@ function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
 function verify_email_identity_amazon($element, &$form_state) {
   if (isset($element['#value'])) {
     $actionParameter['identity'] = $element['#value'];
+    
+    // Call the amazon Query API action GetIdentityVerificationAttributes
     $result = simplenews_amazon_ses_send_request('GetIdentityVerificationAttributes', $actionParameter, '');
+    
+    // Display the result in table returned by Amazon SES
     switch ($result['status']) {
     	case KABOOTR_IDENTITY_VERIFICATION_PENDING :
     	  form_error($element, t('!email address is in pending state, yet not verified by Amazon SES. \n so Please contact amazon SES or change the mail'
