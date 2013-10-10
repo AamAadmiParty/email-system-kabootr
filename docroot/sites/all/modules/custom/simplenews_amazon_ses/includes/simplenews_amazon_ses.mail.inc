@@ -154,17 +154,16 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
     
     $batch = new Batch($transferStrategy, $divisorStrategy); */
     $request_array = '';
+    $queryEndPoint = SimpleEmailService::queryEndPoint;
+    	
+    // Create a client and provide a base URL
+    $client = new Client($queryEndPoint);
     
   	foreach ($actionParameters as $actionParameter) {
   	  $simpleEmailService = new SimpleEmailService();
   	  $simpleEmailService->createQueryRequest($queryAction, $actionParameter);
-  	  $queryEndPoint = SimpleEmailService::queryEndPoint;
-  	  
-  	  // Create a client and provide a base URL
-  	  $client = new Client($queryEndPoint);
   	  
   	  $request = $client->post('',$simpleEmailService->getRequestHeaders(), $simpleEmailService->getRequestParameter(), $options = array());
-
   	  $request->getEventDispatcher()->addListener('request.success', function (Event $e) {
   	    $msid = (string)$e['request']->getHeader('msid');
   	    $queryAction = (string) $e['request']->getHeader('Action');
