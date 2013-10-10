@@ -1,0 +1,12 @@
+{
+	"includes":["SesClient.php"],
+	"services": {
+		"amazon_ses": {
+				"class":"serviceClient\\SesClient",
+				"params": {
+					"consumer_key":"foo_key",
+					"consumer_secret":"foo_secret"
+				}
+			}
+		}
+}

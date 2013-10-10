@@ -114,8 +114,10 @@ function amazon_domain_dkim_setting() {
  */
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
+  
 //  drupal_goto('amazon_identity_list_form');
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
+ // simplenews_amazon_ses_send_source();
  // This function will be invoed in corn, which send mail via amazon
  //simplenews_amazon_ses_mail_spool(); 
   // Add validation, if sender's mail is verified by Amazon SES
@@ -174,6 +176,10 @@ function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
       }
     }
   }
+  
+ // require_once 'includes/classes/guzzle_request.php';
+  //send_request_guzzle();
+  
 }
 
 /**

@@ -487,6 +487,7 @@ Class SimpleEmailService {
     if ($request && isset($actionParameter['simpleEmailServiceMessage'])) {
       $simpleEmailServiceMessage = $actionParameter['simpleEmailServiceMessage'];
       $this->setRequestParameter('Action', 'SendEmail');
+      $this->requestHeaders['msid'] = $simpleEmailServiceMessage->msid;
       $i = 1;
       if ($simpleEmailServiceMessage->to != NULL) {
         $this->setRequestParameter('Destination.ToAddresses.member.' . $i, $simpleEmailServiceMessage->to);
@@ -717,10 +718,11 @@ final class SimpleEmailServiceMessage {
 
   // these are public for convenience only
   // these are not to be used outside of the SimpleEmailService class!
-  public  $to, $replyto;
-  public  $from, $returnpath;
-  public   $subject, $messagetext, $messagehtml;
-  public   $subjectCharset, $messageTextCharset, $messageHtmlCharset;
+  public $to, $replyto;
+  public $from, $returnpath;
+  public $subject, $messagetext, $messagehtml;
+  public $subjectCharset, $messageTextCharset, $messageHtmlCharset;
+  public $msid;
 
   function __construct($message) {
     
@@ -738,5 +740,6 @@ final class SimpleEmailServiceMessage {
     $this->subjectCharset = NULL;
     $this->messageTextCharset = NULL;
     $this->messageHtmlCharset = NULL;
+    $this->msid = $message['msid'];
   }
 }
