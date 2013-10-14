@@ -14,15 +14,13 @@
 
 require_once 'classes/amazonses.class.php';
 $path = drupal_get_path('module', 'simplenews_amazon_ses');
-require_once $path . '/vendor/autoload.php';
+require_once $path . '/vendor/autoload.php';  
 use \Guzzle\Http\Client,
- Guzzle\Http\Exception\MultiTransferException,
 Guzzle\Http\Exception\RequestException;
 use Guzzle\Batch\Batch;
-use Guzzle\Batch\BatchRequestTransfer;
 use Guzzle\Batch\BatchBuilder;
 use Guzzle\Common\Event;
-use Guzzle\Cache\NullCacheAdapter;
+use Guzzle\Batch\Exception\BatchTransferException;
 
 
 
@@ -51,6 +49,7 @@ function simplenews_amazon_ses_mail_spool() {
       if ($row['status'] == KABOOTR_AMAZON_REQUEST_EXCEPTION) {
         return '';
       }
+      
       // Update the status of mail spool
       simplenews_update_spool(array($msid), $row);
       if ($row['status'] == SIMPLENEWS_SPOOL_DONE) {
@@ -142,78 +141,83 @@ function simplenews_amazon_ses_send_source(SimplenewsSpool $spool = NULL) {
  */
 function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
   $result = NULL;
+  
   if ($queryAction === 'SendEmail') {
-    /* $batch = BatchBuilder::factory()
-    ->transferRequests(2)
-   // ->autoFlushAt(2)
-    ->build();
-     */
-    // BatchRequestTransfer acts as both the divisor and transfer strategy
-   /*  $transferStrategy = new BatchRequestTransfer(10);
-    $divisorStrategy = $transferStrategy;
-    
-    $batch = new Batch($transferStrategy, $divisorStrategy); */
-    $request_array = '';
     $queryEndPoint = SimpleEmailService::queryEndPoint;
-    	
-    // Create a client and provide a base URL
+    $request_array = array();
+    
+    // Create batch using BatchBuilder
+    $batch = BatchBuilder::factory()
+    ->transferRequests(40)
+    ->autoFlushAt(1)
+    ->build();
+      
+      // Create a client and provide a base URL
     $client = new Client($queryEndPoint);
-    
-  	foreach ($actionParameters as $actionParameter) {
-  	  $simpleEmailService = new SimpleEmailService();
-  	  $simpleEmailService->createQueryRequest($queryAction, $actionParameter);
+    $_SESSION['time'] = 0;
+    foreach ($actionParameters as $actionParameter) {
+      $simpleEmailService = new SimpleEmailService();
+      $simpleEmailService->createQueryRequest($queryAction, $actionParameter);
+      
+      $request = $client->post('', $simpleEmailService->getRequestHeaders(), $simpleEmailService->getRequestParameter(), $options = array());
+      $request->getEventDispatcher()->addListener('request.success', function (Event $e) {
+        $msid = (string) $e['request']->getHeader('msid');
+        $queryAction = (string) $e['request']->getHeader('Action');
+        $response_xml = (string) $e['response']->getBody();
+        $http_response_xml = simplexml_load_string($response_xml);
+        
+        // Reterieve query action name from http response object
+        $queryActionResult = key((array) $http_response_xml);
+        $actionResponse = $http_response_xml->$queryActionResult;
+        if ($msid == '' || $msid == NULL) {
+          $msid = 'msid';
+        }
+        $response_code = $e['response']->getStatusCode();
+        $_SESSION['query_response'][$msid]['queryActionResult'] = $queryActionResult;
+        $_SESSION['query_response'][$msid]['actionResponse'] = $actionResponse;
+        $_SESSION['query_response'][$msid]['statusCode'] = $response_code;
+
+        // Create log file
+        if ($response_code === 200) {
+          $string = $e['request']->getPostFields()->__toString();
+          $to_address = simplenews_amazon_ses_get_post_field($string, 'Destination.ToAddresses.member.1');
+          $to_address = urldecode($to_address);
+          $mail_sending_time = date('l jS \of F Y h:i:s A');
+          $message_id = (string) $http_response_xml->SendEmailResult->MessageId;
+          $request_id = (string) $http_response_xml->ResponseMetadata->RequestId;
+          $message = "[{$mail_sending_time}] [Sending Mail Success] [Request Id : {$request_id}], [Message Id : {$message_id}] {$to_address}\n";
+          
+          $file = 'mail.log';
+          // Write the contents to the file,
+          // using the FILE_APPEND flag to append the content to the end of the file
+          // and the LOCK_EX flag to prevent anyone else writing to the file at the same time
+          file_put_contents($file, $message, FILE_APPEND | LOCK_EX);
+        }
+      });
+      
+      try {
+        $batch->add($request);
+      } catch ( BatchTransferException $e ) {
+        $result[]['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
+        $request_string = $e->getBatch()[0]->getPostFields()->__toString();
+        $to_address = simplenews_amazon_ses_get_post_field($request_string, 'Destination.ToAddresses.member.1');
+        $to_address = urldecode($to_address);
+        
+        $response_xml = (string) $e->getBatch()[0]->getResponse()->getBody();
+        $http_response_xml = simplexml_load_string($response_xml);
+        $mail_sending_time = date('l jS \of F Y h:i:s A');
+        $error_message = (string) $http_response_xml->Error->Message;
+        $request_id = (string) $http_response_xml->RequestId;
+        $message = "[{$mail_sending_time}] [Sending Email Failed] [Request Id : {$request_id}], [Error Message: {$error_message}] {$to_address}\n";
+
+        // Write the contents to the file,
+        // using the FILE_APPEND flag to append the content to the end of the file
+        // and the LOCK_EX flag to prevent anyone else writing to the file at the same time
+        file_put_contents($file, $message, FILE_APPEND | LOCK_EX);
+      }
+    }
   	  
-  	  $request = $client->post('',$simpleEmailService->getRequestHeaders(), $simpleEmailService->getRequestParameter(), $options = array());
-  	  $request->getEventDispatcher()->addListener('request.success', function (Event $e) {
-  	    $msid = (string)$e['request']->getHeader('msid');
-  	    $queryAction = (string) $e['request']->getHeader('Action');
-  	    $response_string = (string) $e['response']->getBody();
-  	    $http_response_xml = simplexml_load_string($response_string);
-  	    
-  	    // If there is error in response
-  	    if (isset($http_response_xml->Error)) {
-  	      $queryActionResult = 'Error';
-  	      $actionResponse = $http_response_xml->Error;
-  	    }
-  	    else {
-  	      // Reterieve query action name from http response object
-  	      $queryActionResult = key((array)$http_response_xml);
-  	      $actionResponse = $http_response_xml->$queryActionResult;
-  	    }
-  	    if ($msid == '' || $msid == NULL) {
-  	    	$msid = 'msid';
-  	    }
-  	     $_SESSION['query_response'][$msid]['queryActionResult'] = $queryActionResult;
-  	     $_SESSION['query_response'][$msid]['actionResponse'] = $actionResponse;
-  	     $_SESSION['query_response'][$msid]['statusCode'] = $e['response']->getStatusCode();
-  	  });
-        // $batch->add($request);
-      $request_array[] = $request;
-    }
-    
-    try {
-       $client->send($request_array);
-    } catch ( MultiTransferException $e ) {
-      
-      $result[]['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
-      
-      $n = 0;
-      if ($e->getFailedRequests()) {
-        $n = count($e->getFailedRequests());
-      }
-      if ($n > 0) {
-        watchdog('status', 'Number of requests has been failed in Kabootr are' . $n);
-      }
-      
-      $n = 0;
-      if ($e->getSuccessfulRequests()) {
-        $n = count($e->getSuccessfulRequests());
-      }
-      if ($n > 0) {
-        watchdog('error', 'Number of request has been succeed  in Kabootr are ' . $n);
-      }
-    }
-    
+       
     if (isset($_SESSION['query_response'])) {
       $query_response = $_SESSION['query_response'];
       foreach ($query_response as $msid => $value) {
@@ -239,13 +243,12 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
     
     // Create a client and provide a base URL
     $client = new Client($queryEndPoint);
-    
     $request = $client->post('', $simpleEmailService->getRequestHeaders(), $simpleEmailService->getRequestParameter(), $options = array());
     
     try {
       $response = $request->send();
-      $response_string = (string) $response->getBody();
-      $http_response_xml = simplexml_load_string($response_string);
+      $response_xml = (string) $response->getBody();
+      $http_response_xml = simplexml_load_string($response_xml);
       
       // If there is error in response
       if (isset($http_response_xml->Error)) {
@@ -329,5 +332,27 @@ function simplenews_amazon_ses_control_sending_mail() {
  // simplenews_unsubscribe_user($mail, $tid);
 }
 
-
-
+/**
+ * Convert  Guzzle\Http\QueryString to array
+ */
+function simplenews_amazon_ses_get_post_field($field_data, $field_name = NULL) {
+  $temp = explode('&', $field_data);
+  foreach ($temp as $value) {
+    $post_field = explode('=', $value);
+    $post_fields[$post_field[0]] = $post_field[1];
+  }
+  
+  if ($field_name != NULL) {
+    if (isset($post_fields[$field_name])) {
+      return $post_fields[$field_name];
+    }
+    else {
+      return '';
+    }
+  }
+  
+  else {
+    return $post_fields;
+  }
+  
+}
