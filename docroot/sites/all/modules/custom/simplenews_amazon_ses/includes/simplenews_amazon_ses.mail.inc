@@ -31,7 +31,8 @@ use Guzzle\Batch\Exception\BatchTransferException;
 function simplenews_amazon_ses_mail_spool() {
   module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
   // Send pending messages from database cache.
-  $spool_list = simplenews_get_spool(40, $conditions = array());
+  $amazon_send_mail_throttle = variable_get('simplenews_throttle', 20);
+  $spool_list = simplenews_get_spool($amazon_send_mail_throttle, $conditions = array());
   if ($spool_list) {
 
     $sent = array();
@@ -83,6 +84,9 @@ function simplenews_amazon_ses_mail_spool() {
     variable_set('simplenews_last_cron', REQUEST_TIME);
     variable_set('simplenews_last_sent', $count_success);
   } 
+  simplenews_clear_spool();
+  // Update sent status for newsletter admin panel.
+  simplenews_send_status_update();
 }
 
 /**
@@ -199,11 +203,12 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
         $batch->add($request);
       } catch ( BatchTransferException $e ) {
         $result[]['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
-        $request_string = $e->getBatch()[0]->getPostFields()->__toString();
+        $batch_obj = $e->getBatch();
+        $request_string = $batch_obj[0]->getPostFields()->__toString();
         $to_address = simplenews_amazon_ses_get_post_field($request_string, 'Destination.ToAddresses.member.1');
         $to_address = urldecode($to_address);
         
-        $response_xml = (string) $e->getBatch()[0]->getResponse()->getBody();
+        $response_xml = (string) $batch_obj[0]->getResponse()->getBody();
         $http_response_xml = simplexml_load_string($response_xml);
         $mail_sending_time = date('l jS \of F Y h:i:s A');
         $error_message = (string) $http_response_xml->Error->Message;

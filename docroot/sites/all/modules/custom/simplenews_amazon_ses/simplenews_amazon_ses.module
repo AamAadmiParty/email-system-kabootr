@@ -104,11 +104,10 @@ function simplenews_amazon_ses_menu() {
  */
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
-  
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
- // simplenews_amazon_ses_send_source();
  // This function will be invoed in corn, which send mail via amazon
- simplenews_amazon_ses_mail_spool(); 
+ //simplenews_amazon_ses_mail_spool(); 
+ 
  
   // Add validation, if sender's mail is verified by Amazon SES
   if ($form_id == 'simplenews_admin_category_form') {
@@ -212,13 +211,14 @@ function verify_email_identity_amazon($element, &$form_state) {
  * Implements hook_cron().
  */
 //This function is currently commented, the functions run here will be tesed in form alter
-/* function simplenews_amazon_ses_cron() {
-  module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews.mail');
-  simplenews_amazon_ses_mail_spool();
-  simplenews_amazon_ses_control_sending_mail();
-  simplenews_clear_spool();
+function simplenews_amazon_ses_cron() {
+ // module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews.mail');
+  //simplenews_amazon_ses_mail_spool();
+  //simplenews_amazon_ses_control_sending_mail();
+ // simplenews_clear_spool();
   // Update sent status for newsletter admin panel.
-  simplenews_send_status_update();
+ // simplenews_send_status_update();
+  watchdog('amazon cron','aamzon corn');
   
-  
-} */
+}
+
