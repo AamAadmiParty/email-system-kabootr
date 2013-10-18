@@ -212,8 +212,8 @@ function verify_email_identity_amazon($element, &$form_state) {
  */
 //This function is currently commented, the functions run here will be tesed in form alter
 function simplenews_amazon_ses_cron() {
- // module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews.mail');
-  //simplenews_amazon_ses_mail_spool();
+  module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews.mail');
+  simplenews_amazon_ses_mail_spool();
   //simplenews_amazon_ses_control_sending_mail();
  // simplenews_clear_spool();
   // Update sent status for newsletter admin panel.

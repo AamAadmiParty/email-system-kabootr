@@ -215,6 +215,7 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
         $request_id = (string) $http_response_xml->RequestId;
         $message = "[{$mail_sending_time}] [Sending Email Failed] [Request Id : {$request_id}], [Error Message: {$error_message}] {$to_address}\n";
 
+        $file = 'mail.log';
         // Write the contents to the file,
         // using the FILE_APPEND flag to append the content to the end of the file
         // and the LOCK_EX flag to prevent anyone else writing to the file at the same time
