@@ -22,17 +22,106 @@ use Guzzle\Batch\BatchBuilder;
 use Guzzle\Common\Event;
 use Guzzle\Batch\Exception\BatchTransferException;
 
+/**
+ * Send test version of newsletter.
+ *
+ * @param mixed $node
+ *   The newsletter node to be sent.
+ *
+ * @ingroup issue
+ */
+function simplenews_amazon_ses_send_test($node, $test_addresses) {
+  module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
+  // Prevent session information from being saved while sending.
+  /* if ($original_session = drupal_save_session()) {
+    drupal_save_session(FALSE);
+  }
+  // Force the current user to anonymous to ensure consistent permissions.
+  $original_user = $GLOBALS['user'];
+  $GLOBALS['user'] = drupal_anonymous_user();
+ */
+  // Send the test newsletter to the test address(es) specified in the node.
+  // Build array of test email addresses
+
+  // Send newsletter to test addresses.
+  // Emails are send direct, not using the spool.
+  $recipients = array('anonymous' => array(), 'user' => array());
+  foreach ($test_addresses as $mail) {
+    $mail = trim($mail);
+    if (!empty($mail)) {
+      $subscriber = simplenews_subscriber_load_by_mail($mail);
+      if (!$subscriber) {
+        // The source expects a subscriber object with mail and language set.
+        // @todo: Find a cleaner way to do this.
+        $subscriber = new stdClass();
+        $subscriber->uid = 0;
+        $subscriber->mail = $mail;
+        $subscriber->language = $GLOBALS['language']->language;
+      }
+
+      if (!empty($account->uid)) {
+        $recipients['user'][] = $account->name . ' <' . $mail . '>';
+      }
+      else {
+        $recipients['anonymous'][] = $mail;
+      }
+      
+      $source = new SimplenewsSourceNode($node, $subscriber);
+      
+      $actionParameters = '';
+      $message = array(
+          'msid'     => '',  // Used for updating mail status in simplenews letter, so that mail could not be sent twice
+          'to'       => '',
+          'from'     => '',
+          'language' => '',
+          'send'     => TRUE,
+          'subject'  => '',
+          'body'     => '',
+          'return_path' => '',
+          'replyto' => '',
+          'htmltext' => '',
+      );
+      
+          // Build the e-mail
+          $message['to'] = $source->getRecipient();
+          $message['from'] = $source->getFromFormatted();
+          $message['language'] = $source->getLanguage();
+          $message['subject'] = $source->getSubject();
+          $message['htmltext'] = $source->getPlainBody() . "\n" . $source->getPlainFooter();
+          $message['attachments'] = $source->getAttachments();
+          $simpleEmailServiceMessage = new SimpleEmailServiceMessage($message);
+          $actionParameters[]['simpleEmailServiceMessage'] = $simpleEmailServiceMessage;
+    }
+  }
+  
+  // Send test mail
+  $result = simplenews_amazon_ses_send_request('SendEmail', $actionParameters);
+  
+  if (count($recipients['user'])) {
+    $recipients_txt = implode(', ', $recipients['user']);
+    drupal_set_message(t('Test newsletter sent to user %recipient.', array('%recipient' => $recipients_txt)));
+  }
+  if (count($recipients['anonymous'])) {
+    $recipients_txt = implode(', ', $recipients['anonymous']);
+    drupal_set_message(t('Test newsletter sent to anonymous %recipient.', array('%recipient' => $recipients_txt)));
+  }
+
+  /* $GLOBALS['user'] = $original_user;
+  if ($original_session) {
+    drupal_save_session(TRUE);
+  } */
+}
 
 
 /**
  * Send mail form simplenews spool mails, via amazon SES
  * @return string
  */
-function simplenews_amazon_ses_mail_spool() {
+function simplenews_amazon_ses_mail_spool($limit = SIMPLENEWS_UNLIMITED, array $conditions = array()) {
   module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
   // Send pending messages from database cache.
-  $amazon_send_mail_throttle = variable_get('simplenews_throttle', 20);
-  $spool_list = simplenews_get_spool($amazon_send_mail_throttle, $conditions = array());
+  $limit = variable_get('simplenews_throttle', 20);
+  $spool_list = simplenews_get_spool($limit, $conditions);
   if ($spool_list) {
 
     $sent = array();

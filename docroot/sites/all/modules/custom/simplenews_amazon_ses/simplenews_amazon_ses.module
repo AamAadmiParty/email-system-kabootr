@@ -104,11 +104,7 @@ function simplenews_amazon_ses_menu() {
  */
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
-  module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
- // This function will be invoed in corn, which send mail via amazon
- //simplenews_amazon_ses_mail_spool(); 
- 
- 
+
   // Add validation, if sender's mail is verified by Amazon SES
   if ($form_id == 'simplenews_admin_category_form') {
     $form['simplenews_sender_information']['from_address']['#element_validate'] = array('verify_email_identity_amazon');
@@ -173,6 +169,16 @@ function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
     }
   }
   
+  // Alter test newsletter, mail should be send via amaozn ses
+  if ($form_id == 'simplenews_node_tab_send_form') {
+    module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.admin');
+    $form['#submit'] = array('simplenews_amazon_ses_node_tab_send_form_submit');
+  }
+  
+  if ($form_id == 'simplenews_admin_newsletter_issues') {
+    module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.admin');
+    $form['admin']['options']['operation']['#default_value'] = 'activate_amazon';
+  }
  // require_once 'includes/classes/guzzle_request.php';
   //send_request_guzzle();
   
@@ -215,10 +221,19 @@ function simplenews_amazon_ses_cron() {
   module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews.mail');
   simplenews_amazon_ses_mail_spool();
   //simplenews_amazon_ses_control_sending_mail();
- // simplenews_clear_spool();
   // Update sent status for newsletter admin panel.
- // simplenews_send_status_update();
-  watchdog('amazon cron','aamzon corn');
-  
 }
 
+/**
+ * Implements hook_simplenews_issue_operations().
+ */
+function simplenews_amazon_ses_simplenews_issue_operations() {
+  // @todo: future ideas: 'pause' => t('Pause sending'), 'resume' => t('Resume sending'), 'cancel' => t('Cancel sending'), 'publish' => t('Publish'), 'unpublish' => t('Unpublish'));
+  $operations = array(
+      'activate_amazon' => array(
+          'label' => t('Send via Amazon'),
+          'callback' => 'simplenews_amazon_ses_issue_send',
+      ),
+  );
+  return $operations;
+}
