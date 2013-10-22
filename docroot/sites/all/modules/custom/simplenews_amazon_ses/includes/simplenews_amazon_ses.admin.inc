@@ -626,7 +626,7 @@ function simplenews_amazon_ses_node_tab_send_form_submit($form, &$form_state) {
   $node = node_load($values['nid']);
 
   // Send newsletter to all subscribers or send test newsletter
-  module_load_include('inc', 'simplenews', 'includes/simplenews_amazon_ses.mail');
+ module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
   if ($values['simplenews']['send'] == SIMPLENEWS_COMMAND_SEND_NOW) {
     simplenews_add_node_to_spool($node);
     // Attempt to send immediatly, if configured to do so.
