@@ -52,7 +52,7 @@ function simplenews_amazon_ses_permission() {
  * Implements hook_menu
  */
 function simplenews_amazon_ses_menu() {
-  $items['admin/config/services/amazon_ses/amazon_identity_verify'] = array(
+  $items['amazon_ses/amazon_identity_verify'] = array(
       'title' => 'Verify Sender Identity',
       'type' => MENU_NORMAL_ITEM,
       'access arguments' => array('amazon_ses_configuration'),
@@ -60,15 +60,15 @@ function simplenews_amazon_ses_menu() {
       'page arguments' => array('amazon_identity_verify_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
-  $items['admin/config/services/amazon_ses/amazon_get_mail_statistics'] = array(
-      'title' => 'EMail Statistics',
+  $items['amazon_ses/amazon_get_mail_statistics'] = array(
+      'title' => 'Email Statistics',
       'type' => MENU_NORMAL_ITEM,
       'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
       'page arguments' => array('amazon_get_mail_statistics_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
-  $items['admin/config/services/amazon_ses/amazon_identity_list'] = array(
+  $items['amazon_ses/amazon_identity_list'] = array(
       'title' => 'Idenitity List',
       'type' => MENU_NORMAL_ITEM,
       'access arguments' => array('amazon_ses_configuration'),
@@ -76,7 +76,7 @@ function simplenews_amazon_ses_menu() {
       'page arguments' => array('amazon_identity_list_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
-  /* $items['admin/config/services/amazon_ses/set_identity_notification_topic'] = array(
+  /* $items['amazon_ses/set_identity_notification_topic'] = array(
       'title' => 'Set Identity Notification Topic',
       'type' => MENU_LOCAL_TASK,
       //'access arguments' => array('amazon_ses_configuration'),
@@ -85,12 +85,20 @@ function simplenews_amazon_ses_menu() {
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   ); */
   
-  $items['admin/config/services/amazon_ses/amazon_domain_dkim_setting'] = array(
+  $items['amazon_ses/amazon_domain_dkim_setting'] = array(
       'title' => 'DKIM Setting',
-      'type' => MENU_LOCAL_TASK,
+      'type' => MENU_NORMAL_ITEM,
       'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
       'page arguments' => array('amazon_domain_dkim_enable_form'),
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
+  $items['amazon_ses/amazon_credential'] = array(
+      'title' => 'Amazon Access Keys',
+      'type' => MENU_NORMAL_ITEM,
+      'access arguments' => array('amazon_ses_configuration'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('amazon_credential_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
   return $items;

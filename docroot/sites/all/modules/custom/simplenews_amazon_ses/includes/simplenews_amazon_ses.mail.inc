@@ -21,6 +21,7 @@ use Guzzle\Batch\Batch;
 use Guzzle\Batch\BatchBuilder;
 use Guzzle\Common\Event;
 use Guzzle\Batch\Exception\BatchTransferException;
+use Guzzle\Cache\NullCacheAdapter;
 
 /**
  * Send test version of newsletter.
@@ -33,18 +34,18 @@ use Guzzle\Batch\Exception\BatchTransferException;
 function simplenews_amazon_ses_send_test($node, $test_addresses) {
   module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
   // Prevent session information from being saved while sending.
-  /* if ($original_session = drupal_save_session()) {
+  if ($original_session = drupal_save_session()) {
     drupal_save_session(FALSE);
   }
   // Force the current user to anonymous to ensure consistent permissions.
   $original_user = $GLOBALS['user'];
   $GLOBALS['user'] = drupal_anonymous_user();
- */
+
   // Send the test newsletter to the test address(es) specified in the node.
   // Build array of test email addresses
-
   // Send newsletter to test addresses.
   // Emails are send direct, not using the spool.
+  
   $recipients = array('anonymous' => array(), 'user' => array());
   foreach ($test_addresses as $mail) {
     $mail = trim($mail);
@@ -96,20 +97,29 @@ function simplenews_amazon_ses_send_test($node, $test_addresses) {
   
   // Send test mail
   $result = simplenews_amazon_ses_send_request('SendEmail', $actionParameters);
-  
-  if (count($recipients['user'])) {
-    $recipients_txt = implode(', ', $recipients['user']);
-    drupal_set_message(t('Test newsletter sent to user %recipient.', array('%recipient' => $recipients_txt)));
+  $status = $result['status'];
+  if ($status == KABOOTR_MAIL_SENT) {
+    if (count($recipients['user'])) {
+      $recipients_txt = implode(', ', $recipients['user']);
+      drupal_set_message(t('Test newsletter sent to user %recipient.', array(
+          '%recipient' => $recipients_txt
+      )));
+    }
+    if (count($recipients['anonymous'])) {
+      $recipients_txt = implode(', ', $recipients['anonymous']);
+      drupal_set_message(t('Test newsletter sent to anonymous %recipient.', array(
+          '%recipient' => $recipients_txt
+      )));
+    }
   }
-  if (count($recipients['anonymous'])) {
-    $recipients_txt = implode(', ', $recipients['anonymous']);
-    drupal_set_message(t('Test newsletter sent to anonymous %recipient.', array('%recipient' => $recipients_txt)));
+  else {
+    drupal_set_message('Mail Sending faild, For more detail please see log file', 'error');
   }
 
-  /* $GLOBALS['user'] = $original_user;
+  $GLOBALS['user'] = $original_user;
   if ($original_session) {
     drupal_save_session(TRUE);
-  } */
+  }
 }
 
 
@@ -279,11 +289,14 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
           $message_id = (string) $http_response_xml->SendEmailResult->MessageId;
           $request_id = (string) $http_response_xml->ResponseMetadata->RequestId;
           $message = "[{$mail_sending_time}] [Sending Mail Success] [Request Id : {$request_id}], [Message Id : {$message_id}] {$to_address}\n";
+
+          // Mainly used, when we send test mail
+         // $_SESSION['query_response']['sending_status'] = KABOOTR_MAIL_SENT;
           
-          $file = 'mail.log';
           // Write the contents to the file,
           // using the FILE_APPEND flag to append the content to the end of the file
           // and the LOCK_EX flag to prevent anyone else writing to the file at the same time
+          $file = 'mail.log';
           file_put_contents($file, $message, FILE_APPEND | LOCK_EX);
         }
       });
@@ -291,19 +304,29 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       try {
         $batch->add($request);
       } catch ( BatchTransferException $e ) {
-        $result[]['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
         $batch_obj = $e->getBatch();
         $request_string = $batch_obj[0]->getPostFields()->__toString();
         $to_address = simplenews_amazon_ses_get_post_field($request_string, 'Destination.ToAddresses.member.1');
         $to_address = urldecode($to_address);
         
-        $response_xml = (string) $batch_obj[0]->getResponse()->getBody();
-        $http_response_xml = simplexml_load_string($response_xml);
         $mail_sending_time = date('l jS \of F Y h:i:s A');
-        $error_message = (string) $http_response_xml->Error->Message;
-        $request_id = (string) $http_response_xml->RequestId;
+        $request_id = '';
+        if ($batch_obj[0]->getResponse() == NULL) {
+        	$error_message = t('Request to <b>!action</b> action of Amazon SES API call has failed, 
+                    please check your network connection or try after some time.', array(
+              '!action' => "SendEmail"
+          ));
+          drupal_set_message($error_message, 'error');
+        }
+        else {
+          $response_xml = (string) $batch_obj[0]->getResponse()->getBody();
+          $http_response_xml = simplexml_load_string($response_xml);
+          $error_message = (string) $http_response_xml->Error->Message;
+          $request_id = (string) $http_response_xml->RequestId;
+        }
         $message = "[{$mail_sending_time}] [Sending Email Failed] [Request Id : {$request_id}], [Error Message: {$error_message}] {$to_address}\n";
-
+ 
         $file = 'mail.log';
         // Write the contents to the file,
         // using the FILE_APPEND flag to append the content to the end of the file
@@ -344,7 +367,6 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       $response = $request->send();
       $response_xml = (string) $response->getBody();
       $http_response_xml = simplexml_load_string($response_xml);
-      
       // If there is error in response
       if (isset($http_response_xml->Error)) {
         $queryActionResult = 'Error';
@@ -356,10 +378,18 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       }
       $result = $simpleEmailService->getQueryResponse($queryAction, $actionResponse, $response->getStatusCode());
     } catch ( RequestException $e ) {
-        $result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
+        $errorMessage = $e->getMessage();
+        if (strpos($errorMessage, '403')) {
+          $path = drupal_get_path('module', 'simplenews_amazon_ses');
+          $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+          $credential_link = l('Update Your AWS Credential','amazon_ses/amazon_credential');
+          drupal_set_message("You AWS credentials are not matching, please update them {$credential_link}", 'error');
+        }
+        else {
+          $result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
+        }
     }
   }
-  
    // Flush the queue and retrieve the flushed items
    /* $arrayOfTransferredRequests = $batch->flush();
    foreach ($arrayOfTransferredRequests as $v) {

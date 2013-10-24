@@ -18,9 +18,20 @@ Class SimpleEmailService {
   // These security credential is depented to AWS account or it should be sepicific
   // sender email or domain, 
   // Access keys will be saved in database or in csv file [Pending] 
-  const accessKeyId = 'AKIAJ4EMNFQWY3IACPEQ';
-  const secretAccessKey = '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';
+  private $accessKeyId = '';
+  private $secretAccessKey = '';
 
+  public function __construct() {
+    $path = drupal_get_path('module', 'simplenews_amazon_ses');
+    $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+    if (file_exists($file_name)) {
+      $string = file_get_contents($file_name);
+      $string_array = explode(',', $string);
+      $this->accessKeyId = $string_array[0];
+      $this->secretAccessKey = $string_array[1];
+    }
+  }
+  
   private function setRequestParameter($key, $value) {
     $this->requestParameters[$key] = $value;
   }
@@ -36,18 +47,17 @@ Class SimpleEmailService {
   private function setRequestHeaders($dateValue, $signature) {
       $this->requestHeaders['Content-Type'] = self::requestContentType;
       $this->requestHeaders['Date'] = $dateValue;
-      $accessKeyId = self::accessKeyId;
       $this->requestHeaders['X-Amzn-Authorization'] = "AWS3-HTTPS "
-          ."AWSAccessKeyId={$accessKeyId},"
+          ."AWSAccessKeyId={$this->accessKeyId},"
           ."Algorithm=HmacSHA1,Signature={$signature}";
       $this->requestHeaders['Timestamp'] = date('YYYY-MM-DDThh:mm:ssZ');
       $this->requestHeaders['Version'] =  '2010-12-01';
-      $this->requestHeaders['AWSAccessKeyId'] = self::accessKeyId;
+      $this->requestHeaders['AWSAccessKeyId'] = $this->accessKeyId;
   }
 
   // Create HMAC-SHA Signatures for X-Amzn-Authorization HTTP header.
   private function getSignature($date) {
-    $signature = base64_encode(hash_hmac('sha1', $date, self::secretAccessKey, TRUE));
+    $signature = base64_encode(hash_hmac('sha1', $date, $this->secretAccessKey, TRUE));
     return $signature;
   }
   

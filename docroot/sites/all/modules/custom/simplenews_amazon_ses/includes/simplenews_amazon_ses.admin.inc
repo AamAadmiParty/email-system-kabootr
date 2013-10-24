@@ -8,92 +8,87 @@
  * @return Array $form
  */
 function amazon_identity_verify_form($form, &$form_state) {
-  drupal_add_js(drupal_get_path('module', 'simplenews_amazon_ses') . '/js/amazon_ses_config.js');
-  drupal_add_css(drupal_get_path('module', 'simplenews_amazon_ses') . '/css/amazon_ses_config.css');
   
-  $form['amazon_ses_service'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('Subscribe to Amazon SES Service'),
-      '#collapsed' => FALSE,
-  );
-
-  $form['ajax_region'] = array(
-      '#prefix' => '<div id = "amazon-identity-setting-form-wrapper">',
-      '#suffix' => '</div>',
-  );
-  $form['amazon_ses_service']['identity_type'] = array(
-      '#type' => 'radios',
-      '#title' => t('Please Select Identityfication Type'),
-      '#options' => array(
-          'EmailAddress' => 'Email Address',
-          'Domain' => 'Domain Name'
-      ),
-      '#attributes' => array('class' => array('container-inline')),
-      '#required' => TRUE,
-      '#description' => t('To maintain trust between
+  // Verify if User has provided AWS credential, if not then force him to provide that
+  // as without aws credential this we can not talk with amazon ses
+  $path = drupal_get_path('module', 'simplenews_amazon_ses');
+  $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+  if (!file_exists($file_name)) {
+    $credential_link = l('Provide Your AWS Credential', arg(0) . '/amazon_credential');
+    $message = t("Sorry, You can not send request to Amazon SES, First provide you AWS credential here {$credential_link}");
+  	drupal_set_message($message, 'error');
+  }
+  
+  else {
+    $form['amazon_ses_service'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Verify sender identity'),
+        '#collapsed' => FALSE,
+    );
+    
+    $form['ajax_region'] = array(
+        '#prefix' => '<div id = "amazon-identity-setting-form-wrapper">',
+        '#suffix' => '</div>',
+    );
+    $form['amazon_ses_service']['identity_type'] = array(
+        '#type' => 'radios',
+        '#title' => t('Please Select Identityfication Type'),
+        '#options' => array(
+            'EmailAddress' => 'Email Address',
+            'Domain' => 'Domain Name'
+        ),
+        '#attributes' => array('class' => array('container-inline')),
+        '#required' => TRUE,
+        '#description' => t('To maintain trust between
           ISPs and Amazon SES, Amazon SES needs to ensure that its senders are who they say they are'
-      ),
-      // ajax attached to show number of installment persent in selected fees type
-      /* '#ajax' => array(
-       'callback' => 'amazon_identity_verify_form_callback',
-          'wrapper' => 'amazon-identity-verify-form-wrapper',
-          'effect' => 'fade',
-          'method' => 'html',
-      ), */
-  );
-  $form['amazon_ses_service']['identity_domain'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Fully Qualified Domain Name'),
-      '#size' => 60,
-      '#description' => t('You must verify each email
+        ),
+    );
+    $form['amazon_ses_service']['identity_domain'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Fully Qualified Domain Name'),
+        '#size' => 60,
+        '#description' => t('You must verify each email
                 address that will be used as a <b>From</b> or <b>Return-Path</b> address for your messages.<br>
                 The entire email address is <b>case-sensitive</b>. <br>
                 Until you are granted production access to Amazon SES, you must also verify the email address
                 of every recipient except for the recipients provided by the Amazon SES mailbox simulator.<br>
-          <b>Important:</b> In order to complete verification, On success full sending this request you will get a token or a TXT 
+          <b>Important:</b> In order to complete verification, On success full sending this request you will get a token or a TXT
           record that must be placed in the DNS settings for the domain.'),
-      '#prefix' => '<div class = identity-domain-class>',
-      '#suffix' => '</div>',
-  );
-   
-  $form['amazon_ses_service']['identity_email'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Email Address'),
-      '#size' => 60,
-      '#description' => t('When you verify an entire domain, you are verifying all email addresses from
+        '#prefix' => '<div class = identity-domain-class>',
+        '#suffix' => '</div>',
+        '#states' => array(
+            'visible' => array(
+                ':input[name="identity_type"]' => array('value' => 'Domain'),
+            ),
+        ),
+    );
+     
+    $form['amazon_ses_service']['identity_email'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Email Address'),
+        '#size' => 60,
+        '#description' => t('When you verify an entire domain, you are verifying all email addresses from
                         that domain, so you dont need to verify email addresses from that domain individually..<br>
                         Domain names are <b>case-insensitive</b>.
                         <br> <b>Important:</b> Amazon SES only verifies fully qualified domain names (FQDNs). Even if you verify a domain,
                         you have to verify subdomains of that domain. For example, if you want to send email from both
                         example.com and newyork.example.com, you need to verify each of these FQDNs separately.'),
-      '#prefix' => '<div class = identity-email-class>',
-      '#suffix' => '</div>',
-  );
-   
-  $form['amazon_ses_service']['send_request'] = array(
-      '#type' => 'submit',
-      '#value' => t('Send Request'),
-  );
-  return $form; 
-}
-
-/**
- * ajax callback for amazon_identity_verify_form
- */
-/* function amazon_identity_verify_form_callback($form, &$form_state) {
-  if (isset($form_state['values']['identity_type'])) {
-    $identity_type = $form_state['values']['identity_type'];
-    switch($identity_type) {
-      case 'email' :
-        $form['amazon_ses_service']['ajax_region']['identity_email']['#access'] = TRUE;
-        break;
-      case 'domain' :
-        $form['amazon_ses_service']['ajax_region']['identity_domain']['#access'] = TRUE;
-        break;
-    }
+        '#prefix' => '<div class = identity-email-class>',
+        '#suffix' => '</div>',
+        '#states' => array(
+            'visible' => array(
+                ':input[name="identity_type"]' => array('value' => 'EmailAddress'),
+            ),
+        ),
+    );
+     
+    $form['amazon_ses_service']['send_request'] = array(
+        '#type' => 'submit',
+        '#value' => t('Send Request'),
+    );
+    return $form;
   }
-  return $form['amazon_ses_service']['ajax_region'];
-} */
+}
 
 /**
  * Form validation callback for amazon identity request form.
@@ -152,16 +147,17 @@ function amazon_identity_verify_form_submit($form, &$form_state) {
             '!mail' => $form_state['values']['identity_email']
         ));
         drupal_set_message($message, 'status');
-        drupal_goto('admin/config/services/amazon_ses/amazon_identity_list');
+        drupal_goto(arg(0) . 'amazon_identity_list');
         break;
       
       case KABOOTR_VERIFY_DOMAIN_SUCCESS :
-        $learn_more = l('Learn More', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-domains.html');
+        $link_attributes = array('attributes' => array('target' => '_blank'));
+        $learn_more = l('Learn More', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-domains.html', $link_attributes);
         $message = t("In order to complete verification of this domain, you must create a TXT record in the DNS settings for the domain, 
             with the value shown in TXT column.<br> When Amazon Web Services has confirmed that these values are present in the DNS settings for the domain, 
             the Status for the domain will change to <b>verified</b>. This may take up to 72 hours, {$learn_more}.");
         drupal_set_message($message, 'status');
-        drupal_goto('admin/config/services/amazon_ses/amazon_identity_list');
+        drupal_goto(arg(0) . '/amazon_identity_list');
         break;
       
       case KABOOTR_AMAZON_REQUEST_EXCEPTION :
@@ -211,7 +207,6 @@ function get_indentity_list($identity_type = NULL) {
     $actionParameter['MaxItems'] = 10;
     module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
     $result = simplenews_amazon_ses_send_request('ListIdentities', $actionParameter);
-
     // Display the response of calling of Amazon SES API
     if (isset($result['status'])) {
       switch($result['status']) {
@@ -298,8 +293,8 @@ function get_indentity_list($identity_type = NULL) {
         'VerificationStatus' => 'Status',
         'DomainRecordSet' => 'Domain Verification Record Set',
     );
-    
-    $learn_more = l('Learn more about verifying Emails in Amazon SES', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-email-addresses.html');
+    $link_attributes = array('attributes' => array('target' => '_blank'));
+    $learn_more = l('Learn more about verifying Emails in Amazon SES', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-email-addresses.html', $link_attributes);
     $form['amazon_list_identities_filter']['#description'] = "To complete domain verification, you must add a <b>TXT</b> record with the displayed <b>Name</b> and <b>Value</b> to
     your domain's DNS settings.<br> <b>Note: </b>Some domain name providers use the term <b>Host</b> instead of
     <b>Name</b>. If your DNS provider does not allow underscores in record names, you can omit the
@@ -316,8 +311,8 @@ function get_indentity_list($identity_type = NULL) {
         'key' => 'Email Address',
         'VerificationStatus' => 'Status'
     );
-    
-    $learn_more = l('Learn more about verifying domain in Amazon SES', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-domains.html');
+    $link_attributes = array('attributes' => array('target' => '_blank'));
+    $learn_more = l('Learn more about verifying domain in Amazon SES', 'http://docs.aws.amazon.com/ses/latest/DeveloperGuide/verify-domains.html', $link_attributes);
     $form['amazon_list_identities_filter']['#description'] = "<li>In your email client, open the message from Amazon SES asking you to confirm that you are the owner of this email address.</li>
                   <li>Click the link in the message.</li>
                   <li><b>Note:</b> The link in the verification message expires 24 hours after your original verification request.</li>
@@ -347,40 +342,52 @@ function get_indentity_list($identity_type = NULL) {
  */
 function amazon_identity_list_form($form, &$form_state) {
   
-  // Set default identity type to Email Address
-  $identity_type = 'EmailAddress';
-  
-  // If form is rubuild, then for fetching idenitity list should not send again request to Amazon Query API action
-  if (!$form_state['rebuild']) {
-    unset($_SESSION['amazon_identity_list']);
+  // Verify if User has provided AWS credential, if not then force him to provide that
+  // as without aws credential this we can not talk with amazon ses
+  $path = drupal_get_path('module', 'simplenews_amazon_ses');
+  $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+  if (!file_exists($file_name)) {
+    $credential_link = l('Provide Your AWS Credential', arg(0) . '/amazon_credential');
+    $message = t("Sorry, You can not send request to Amazon SES, First provide you AWS credential here {$credential_link}");
+    drupal_set_message($message, 'error');
   }
   
-  // When filter button is clicked, mean user wants to fetch new verified  list, so remove the
-  // existing identity list
-  if (isset($form_state['clicked_button']['#value'])) {
-    if ($form_state['clicked_button']['#value'] == 'Filter') {
-      $identity_type = $form_state['values']['select_indentity'];
-    	unset($_SESSION['amazon_identity_list']);
+  else {
+    // Set default identity type to Email Address
+    $identity_type = 'EmailAddress';
+    
+    // If form is rubuild, then for fetching idenitity list should not send again request to Amazon Query API action
+    if (!$form_state['rebuild']) {
+      unset($_SESSION['amazon_identity_list']);
     }
+    
+    // When filter button is clicked, mean user wants to fetch new verified  list, so remove the
+    // existing identity list
+    if (isset($form_state['clicked_button']['#value'])) {
+      if ($form_state['clicked_button']['#value'] == 'Filter') {
+        $identity_type = $form_state['values']['select_indentity'];
+        unset($_SESSION['amazon_identity_list']);
+      }
+    }
+    
+    // Reterieve identity list by sending request to amazon SES API if required else from existing list stored in session
+    $form = get_indentity_list($identity_type);
+    
+    if (isset($form['exception'])) {
+      return '';
+    }
+    $form['amazon_list_identities_update']['select_update'] = array(
+        '#type' => 'select',
+        '#title' => t(''),
+        '#options' =>array('DeleteIdentity' => 'Delete Identity'),
+    );
+    $form['amazon_list_identities_update']['update'] = array(
+        '#type' => 'submit',
+        '#value' => t('Send Request'),
+    );
+    
+    return $form;
   }
-  
-  // Reterieve identity list by sending request to amazon SES API if required else from existing list stored in session
-  $form = get_indentity_list($identity_type);
-  
-  if (isset($form['exception'])) {
-    return '';
-  }
-  $form['amazon_list_identities_update']['select_update'] = array(
-      '#type' => 'select',
-      '#title' => t(''),
-      '#options' =>array('DeleteIdentity' => 'Delete Identity'),
-  );
-  $form['amazon_list_identities_update']['update'] = array(
-      '#type' => 'submit',
-      '#value' => t('Send Request'),
-  );
-  
-  return $form;
 }
 
 /**
@@ -448,71 +455,87 @@ function amazon_identity_list_form_submit($form, &$form_state) {
   * Sendign Quota and statistics should be displayed to user in better GUI and user of graph
   */
 function amazon_get_mail_statistics_form($form, $form_state) { 
-  module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
-  $result_quota = simplenews_amazon_ses_send_request('GetSendQuota', $actionParameter = array());
-  if (isset($result_quota['status'])) {
-    switch($result_quota['status']) {
-      case KABOOTR_AMAZON_REQUEST_EXCEPTION :
-        $message = t('Request to <b>!action</b> action of Amazon SES API call has failed, 
+  
+  // Verify if User has provided AWS credential, if not then force him to provide that
+  // as without aws credential this we can not talk with amazon ses
+  $path = drupal_get_path('module', 'simplenews_amazon_ses');
+  $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+  if (!file_exists($file_name)) {
+    $credential_link = l('Provide Your AWS Credential', arg(0) . '/amazon_credential');
+    $message = t("Sorry, You can not send request to Amazon SES, First provide you AWS credential here {$credential_link}");
+    drupal_set_message($message, 'error');
+  }
+  else {
+    module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
+    $result_quota = simplenews_amazon_ses_send_request('GetSendQuota', $actionParameter = array());
+    if (isset($result_quota['status'])) {
+      switch($result_quota['status']) {
+        case KABOOTR_AMAZON_REQUEST_EXCEPTION :
+          $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
                     please check your network connection or try after some time.', array(
-            '!action' => "GetSendQuota"
-        ));
-        drupal_set_message($message, 'error');
-        return '';
-      case KABOOTR_AMAZON_REQUEST_FAILURE :
-        $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
+              '!action' => "GetSendQuota"
+          ));
+          drupal_set_message($message, 'error');
+          return '';
+        case KABOOTR_AMAZON_REQUEST_FAILURE :
+          $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
                     missing some parameter or Request is not valid.', array(
-            '!action' => "GetSendQuota"
-        ));
-        drupal_set_message($message, 'error');
-        return '';
+              '!action' => "GetSendQuota"
+          ));
+          drupal_set_message($message, 'error');
+          return '';
+      }
     }
-  }
-  
-  $form['sending_limits_fieldset'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('Your Amazon SES Sending Limits'),
-      '#collapsed' => FALSE,
-  );
-  $form['sending_limits_fieldset']['sending_limit_data'] = array(
-      '#prefix' => "<div class = sending-limit><b>Sending Quota:</b>
-      	Send {$result_quota['Max24HourSend']} emails per 24 hour period <br>
-      	<b>Sent Mail:</b> {$result_quota['SentLast24Hours']} <br>
-      	<b>Max Send Rate:</b>	{$result_quota['MaxSendRate']} Email/second"
-  );
-  
-  sleep(1);
-  $result_statistics = simplenews_amazon_ses_send_request('GetSendStatistics', $actionParameter = array());
-  if (isset($result_statistics['status'])) {
-    switch($result_statistics['status']) {
-    	case KABOOTR_AMAZON_REQUEST_EXCEPTION:
-    	   $message = t('Request to <b>!action</b> action of Amazon SES API call has failed, 
-                    please check your network connection or try after some time.', array('!action' => "GetSendStatistics"));
-        drupal_set_message($message, 'error');
-        return '';
-    	case KABOOTR_AMAZON_REQUEST_FAILURE:
-    	  $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
-                    missing some parameter or Request is not valid.',array('!action' => "GetSendStatistics"));
-        drupal_set_message($message, 'error');
-        return '';
+    
+    $form['sending_limits_fieldset'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Your Amazon SES Sending Limits'),
+        '#collapsed' => FALSE
+    );
+    $form['sending_limits_fieldset']['sending_limit_data'] = array(
+        '#prefix' => "<div class = sending-limit><b>Sending Quota:</b>
+        Send {$result_quota['Max24HourSend']} emails per 24 hour period <br>
+        <b>Sent Mail:</b> {$result_quota['SentLast24Hours']} <br>
+        <b>Max Send Rate:</b>	{$result_quota['MaxSendRate']} Email/second"
+    );
+    
+    sleep(1);
+    $result_statistics = simplenews_amazon_ses_send_request('GetSendStatistics', $actionParameter = array());
+    if (isset($result_statistics['status'])) {
+      switch($result_statistics['status']) {
+        case KABOOTR_AMAZON_REQUEST_EXCEPTION :
+          $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
+                    please check your network connection or try after some time.', array(
+              '!action' => "GetSendStatistics"
+          ));
+          drupal_set_message($message, 'error');
+          return '';
+        case KABOOTR_AMAZON_REQUEST_FAILURE :
+          $message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
+                    missing some parameter or Request is not valid.', array(
+              '!action' => "GetSendStatistics"
+          ));
+          drupal_set_message($message, 'error');
+          return '';
+      }
     }
-  }
-  $form['sending_statistics_fieldset'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('Your Amazon SES Metrics'),
-      '#collapsed' => FALSE,
-  );
-  $form['sending_statistics_fieldset']['sending_statistics_data'] = array(
-      '#prefix' => "<div class = sending-limit><b>Total number of mails sent:</b>
-      {$result_statistics['DeliveryAttempts']} in last two weeks <br>
+    $form['sending_statistics_fieldset'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Your Amazon SES Metrics'),
+        '#collapsed' => FALSE
+    );
+    $form['sending_statistics_fieldset']['sending_statistics_data'] = array(
+        '#prefix' => "<div class = sending-limit><b>Total number of mails sent:</b>
+                            {$result_statistics['DeliveryAttempts']} in last two weeks <br>
       <b>Total number of Bounces Mail:</b>
-      {$result_statistics['Bounces']} in last two weeks <br>
-      <b>Total number of Complaints mail:</b>
-      {$result_statistics['Complaints']} in last two weeks <br>
-      <b>Total number of Rejected mail:</b>
-      {$result_statistics['Rejects']} in last two weeks <br>"
-      );
-  return $form;
+          {$result_statistics['Bounces']} in last two weeks <br>
+          <b>Total number of Complaints mail:</b>
+          {$result_statistics['Complaints']} in last two weeks <br>
+          <b>Total number of Rejected mail:</b>
+          {$result_statistics['Rejects']} in last two weeks <br>"
+          );
+      return $form;
+  }
 } 
 
 /**
@@ -520,84 +543,96 @@ function amazon_get_mail_statistics_form($form, $form_state) {
  */
 function amazon_domain_dkim_enable_form($form, &$form_state) {
   
-  // Set default identity type to Email Address
- $identity_type = 'Domain';
-  
-  // Form will be rebuild, when we click on Get Token, then there is no need of again sending request to
-  // get verified identies, it will be reterieved form session
-  if (!$form_state['rebuild']) {
-  	unset($_SESSION['amazon_identity_list']);
+  // Verify if User has provided AWS credential, if not then force him to provide that
+  // as without aws credential this we can not talk with amazon ses
+  $path = drupal_get_path('module', 'simplenews_amazon_ses');
+  $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+  if (!file_exists($file_name)) {
+    $credential_link = l('Provide Your AWS Credential', arg(0) . '/amazon_credential');
+    $message = t("Sorry, You can not send request to Amazon SES, First provide you AWS credential here {$credential_link}");
+    drupal_set_message($message, 'error');
   }
   
-  // When filter button is clicked, mean user wants to fetch new verified  list, so remove the
-  // existing identity list
-  if (isset($form_state['clicked_button']['#value'])) {
-  	if ($form_state['clicked_button']['#value'] == 'Filter') {
-  	  $identity_type = $form_state['values']['select_indentity'];
-  		unset($_SESSION['amazon_identity_list']);
-  	}
-  } 
- 
-  // Reterieve identity list by sending request to amazon SES API if required else from existing list stored in session
-  $form = get_indentity_list($identity_type);
-  
-  if (isset($form['exception'])) {
-  	return '';
-  }
-  $form['amazon_list_identities_filter']['select_indentity']['#default_value'] = array($identity_type);
-  
-  $form['amazon_list_identities_update']['select_update'] = array(
-      '#type' => 'select',
-      '#title' => t(''),
-      '#options' => array(
-          'DkimAttributes' => 'Get CNAME record'
-      ),
-  );
-  $form['amazon_list_identities_update']['update'] = array(
-      '#type' => 'button',
-      '#value' => t('Send Request'),
-  );
-  
-  $form['amazon_list_identities_update']['#title'] = t('DKIM Settings');
-  $form['amazon_list_identities_update']['#description'] = t("DomainKeys Identified Mail (DKIM) is a standard that allows senders to sign
+  else {
+    // Set default identity type to Email Address
+    $identity_type = 'Domain';
+    
+    // Form will be rebuild, when we click on Get Token, then there is no need of again sending request to
+    // get verified identies, it will be reterieved form session
+    if (!$form_state['rebuild']) {
+      unset($_SESSION['amazon_identity_list']);
+    }
+    
+    // When filter button is clicked, mean user wants to fetch new verified  list, so remove the
+    // existing identity list
+    if (isset($form_state['clicked_button']['#value'])) {
+      if ($form_state['clicked_button']['#value'] == 'Filter') {
+        $identity_type = $form_state['values']['select_indentity'];
+      		unset($_SESSION['amazon_identity_list']);
+      }
+    }
+    
+    // Reterieve identity list by sending request to amazon SES API if required else from existing list stored in session
+    $form = get_indentity_list($identity_type);
+    
+    if (isset($form['exception'])) {
+      return '';
+    }
+    $form['amazon_list_identities_filter']['select_indentity']['#default_value'] = array($identity_type);
+    
+    $form['amazon_list_identities_update']['select_update'] = array(
+        '#type' => 'select',
+        '#title' => t(''),
+        '#options' => array(
+            'DkimAttributes' => 'Get CNAME record'
+        ),
+    );
+    $form['amazon_list_identities_update']['update'] = array(
+        '#type' => 'button',
+        '#value' => t('Send Request'),
+    );
+    
+    $form['amazon_list_identities_update']['#title'] = t('DKIM Settings');
+    $form['amazon_list_identities_update']['#description'] = t("DomainKeys Identified Mail (DKIM) is a standard that allows senders to sign
                      their email messages and ISPs to use those signatures to verify that those messages are legitimate and have not been
                      modified by a third party in transit.<br>
                      To set up DKIM, you must update your domain's DNS settings with the CNAME record information. For obtaining CNAME record
                      select Domain or Email addrees then click on <b>Send Request</b>.
                      <br></br>");
-  
-  $form['amazon_list_identities_update']['list_table']['#multiple'] = FALSE;
-  $form['amazon_list_identities_update']['list_table']['#input'] = FALSE;
-  
-  $form['amazon_list_identities_update']['update']['#ajax'] = array(
-  	'callback' => 'amazon_domain_dkim_enable_callback',
-      'wrapper' => 'domain-dkim-wrapper',
-      'effect' => 'fade',
-      'method' => 'html',
-  );
-  
-  // Form component showing DKIM records
-  $header = array(
-      'name' => 'Name',
-      'type' => 'Type',
-      'value' => 'Value',
-  );
-  $form['div'] = array(
-      '#prefix' => '<div id = "domain-dkim-wrapper">',
-      '#suffix' => '</div>',
-  );
-  $form['div']['domain_dkim_info'] = array(
-      '#prefix' => '',
-      '#suffix' => '',
-  );
-  $form['div']['domain_dkim_token_table'] = array(
-      '#type' => 'tableselect',
-      '#header' => $header,
-      '#options' => NULL,
-      '#empty' => t('No content available.'),
-      '#access' => FALSE,
-  );
-  return $form;
+    
+    $form['amazon_list_identities_update']['list_table']['#multiple'] = FALSE;
+    $form['amazon_list_identities_update']['list_table']['#input'] = FALSE;
+    
+    $form['amazon_list_identities_update']['update']['#ajax'] = array(
+        'callback' => 'amazon_domain_dkim_enable_callback',
+        'wrapper' => 'domain-dkim-wrapper',
+        'effect' => 'fade',
+        'method' => 'html',
+    );
+    
+    // Form component showing DKIM records
+    $header = array(
+        'name' => 'Name',
+        'type' => 'Type',
+        'value' => 'Value',
+    );
+    $form['div'] = array(
+        '#prefix' => '<div id = "domain-dkim-wrapper">',
+        '#suffix' => '</div>',
+    );
+    $form['div']['domain_dkim_info'] = array(
+        '#prefix' => '',
+        '#suffix' => '',
+    );
+    $form['div']['domain_dkim_token_table'] = array(
+        '#type' => 'tableselect',
+        '#header' => $header,
+        '#options' => NULL,
+        '#empty' => t('No content available.'),
+        '#access' => FALSE,
+    );
+    return $form;
+  }
 }
 
 /**
@@ -619,6 +654,74 @@ function amazon_domain_dkim_enable_form_validate($form, &$form_state) {
 }
 
 /**
+ * Form for Enablling DKIM for sender's Identity
+ */
+function amazon_credential_form($form, &$form_state) {
+  
+  $link_attributes = array('attributes' => array('target' => '_blank'));
+  
+  $path = drupal_get_path('module', 'simplenews_amazon_ses');
+  $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+  if (file_exists($file_name)) {
+    $credential_updates = date ("F d Y H:i:s.", filemtime($file_name));
+    $link_rotation = l('Access Credential Rotation',
+        'http://docs.aws.amazon.com/AWSSecurityCredentials/1.0/AboutAWSCredentials.html#CredentialRotation', $link_attributes);
+    $message = t("You have already saved your AWS credential on <b>{$credential_updates}</b> <br>
+        For security purposes, we recommend you change your access keys every 90 days. For more information, see {$link_rotation}");
+    drupal_set_message($message, 'status');
+  }
+  
+  $link_key = l('Access Keys', 'https://portal.aws.amazon.com/gp/aws/securityCredentials?', $link_attributes);
+  $form['amazon_access_key'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Provide your AWS Acees Key'),
+      '#description' => t("For obtaining AWS credential, go to the {$link_key} page on the AWS Security Credentials page."),
+      '#collapsed' => FALSE,
+  );
+  
+  $form['amazon_access_key']['id'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Access Key ID'),
+      '#description' => t("Your Access Key ID identifies you as the party responsible for service requests.
+           Kabootr include it in each request, so it's not a secret."),
+      '#required' => TRUE,
+  );
+  $form['amazon_access_key']['seceret'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Secret Access Key'),
+      '#description' => t("Each Access Key ID has a Secret Access Key associated with it. This key is just a 
+          long string of characters (and not a file) that kabootr use to calculate the digital signature that you 
+          include in the request. Your Secret Access Key is a secret, and only you and AWS should have it. 
+          Don't e-mail it to anyone, include it any AWS requests, or post it on the AWS Discussion Forums. 
+          No authorized person from AWS will ever ask for your Secret Access Key."),
+      '#required' => TRUE,
+  );
+  $form['amazon_access_key']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Save Access Key',
+  );
+  return $form;
+}
+
+/**
+ * @todo
+ */
+function amazon_credential_form_submit($form, &$form_state) {
+  
+  $path = drupal_get_path('module', 'simplenews_amazon_ses');
+  $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+  $fp = fopen($file_name,"wb");
+  chmod($file_name, 0664);
+  $id = trim($form_state['values']['id']);
+  $secret = trim($form_state['values']['seceret']);
+  $content = "{$id},{$secret}";
+  fwrite($fp,$content);
+  fclose($fp);
+  $message = t('Congrutalion..!! You AWS credentials has saved securily. Now you can send request to Amazon SES.');
+  drupal_set_message($message, 'status');
+}
+
+/**
  * @todo
  */
 function simplenews_amazon_ses_node_tab_send_form_submit($form, &$form_state) {
@@ -626,7 +729,7 @@ function simplenews_amazon_ses_node_tab_send_form_submit($form, &$form_state) {
   $node = node_load($values['nid']);
 
   // Send newsletter to all subscribers or send test newsletter
- module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
+  module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
   if ($values['simplenews']['send'] == SIMPLENEWS_COMMAND_SEND_NOW) {
     simplenews_add_node_to_spool($node);
     // Attempt to send immediatly, if configured to do so.
