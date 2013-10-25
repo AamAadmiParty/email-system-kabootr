@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Kabootr Left Navigation feature.
+ */
+
+include_once 'f_kabootr_left_navigation.features.inc';
