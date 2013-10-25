@@ -147,7 +147,7 @@ function amazon_identity_verify_form_submit($form, &$form_state) {
             '!mail' => $form_state['values']['identity_email']
         ));
         drupal_set_message($message, 'status');
-        drupal_goto(arg(0) . 'amazon_identity_list');
+        drupal_goto('admin/kabootr-settings/aws-ses-sender-id-list');
         break;
       
       case KABOOTR_VERIFY_DOMAIN_SUCCESS :
@@ -157,7 +157,7 @@ function amazon_identity_verify_form_submit($form, &$form_state) {
             with the value shown in TXT column.<br> When Amazon Web Services has confirmed that these values are present in the DNS settings for the domain, 
             the Status for the domain will change to <b>verified</b>. This may take up to 72 hours, {$learn_more}.");
         drupal_set_message($message, 'status');
-        drupal_goto(arg(0) . '/amazon_identity_list');
+        drupal_goto('admin/kabootr-settings/aws-ses-sender-id-list');
         break;
       
       case KABOOTR_AMAZON_REQUEST_EXCEPTION :
@@ -659,7 +659,8 @@ function amazon_domain_dkim_enable_form_validate($form, &$form_state) {
 function amazon_credential_form($form, &$form_state) {
   
   $link_attributes = array('attributes' => array('target' => '_blank'));
-  
+  $id = '';
+  $secret = '';
   $path = drupal_get_path('module', 'simplenews_amazon_ses');
   $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
   if (file_exists($file_name)) {
@@ -669,6 +670,11 @@ function amazon_credential_form($form, &$form_state) {
     $message = t("You have already saved your AWS credential on <b>{$credential_updates}</b> <br>
         For security purposes, we recommend you change your access keys every 90 days. For more information, see {$link_rotation}");
     drupal_set_message($message, 'status');
+
+    $string = file_get_contents($file_name);
+    $string_array = explode(',', $string);
+    $id = $string_array[0];
+    $secret = $string_array[1];
   }
   
   $link_key = l('Access Keys', 'https://portal.aws.amazon.com/gp/aws/securityCredentials?', $link_attributes);
@@ -680,14 +686,15 @@ function amazon_credential_form($form, &$form_state) {
   );
   
   $form['amazon_access_key']['id'] = array(
-      '#type' => 'textarea',
+      '#type' => 'textfield',
       '#title' => t('Access Key ID'),
       '#description' => t("Your Access Key ID identifies you as the party responsible for service requests.
            Kabootr include it in each request, so it's not a secret."),
       '#required' => TRUE,
+      '#default_value' => $id,
   );
   $form['amazon_access_key']['seceret'] = array(
-      '#type' => 'textarea',
+      '#type' => 'textfield',
       '#title' => t('Secret Access Key'),
       '#description' => t("Each Access Key ID has a Secret Access Key associated with it. This key is just a 
           long string of characters (and not a file) that kabootr use to calculate the digital signature that you 
@@ -695,6 +702,7 @@ function amazon_credential_form($form, &$form_state) {
           Don't e-mail it to anyone, include it any AWS requests, or post it on the AWS Discussion Forums. 
           No authorized person from AWS will ever ask for your Secret Access Key."),
       '#required' => TRUE,
+      '#default_value' => $secret,
   );
   $form['amazon_access_key']['submit'] = array(
       '#type' => 'submit',

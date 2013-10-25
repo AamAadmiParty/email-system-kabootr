@@ -52,30 +52,56 @@ function simplenews_amazon_ses_permission() {
  * Implements hook_menu
  */
 function simplenews_amazon_ses_menu() {
-  $items['amazon_ses/amazon_identity_verify'] = array(
-      'title' => 'Verify Sender Identity',
+  
+  $items['admin/kabootr-settings'] = array(
+      'title' => 'Settings',
       'type' => MENU_NORMAL_ITEM,
+      'access arguments' => array('amazon_ses_configuration'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('amazon_credential_form'),
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
+  $items['admin/kabootr-settings/aws-access-keys'] = array(
+      'title' => 'AWS Access Keys',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'access arguments' => array('amazon_ses_configuration'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('amazon_credential_form'),
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
+  $items['admin/kabootr-settings/aws-verify-ses-sender-id'] = array(
+      'title' => 'Verify Sender ID',
+      'type' => MENU_LOCAL_TASK,
       'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
       'page arguments' => array('amazon_identity_verify_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
-  $items['amazon_ses/amazon_get_mail_statistics'] = array(
-      'title' => 'Email Statistics',
-      'type' => MENU_NORMAL_ITEM,
-      'access arguments' => array('amazon_ses_configuration'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('amazon_get_mail_statistics_form'),
-      'file' => 'includes/simplenews_amazon_ses.admin.inc',
-  );
-  $items['amazon_ses/amazon_identity_list'] = array(
-      'title' => 'Idenitity List',
-      'type' => MENU_NORMAL_ITEM,
+  $items['admin/kabootr-settings/aws-ses-sender-id-list'] = array(
+      'title' => 'Sender ID List',
+      'type' => MENU_LOCAL_TASK,
       'access arguments' => array('amazon_ses_configuration'),
       'page callback' => 'drupal_get_form',
       'page arguments' => array('amazon_identity_list_form'),
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
+  $items['admin/kabootr-settings/dkim-setup'] = array(
+      'title' => 'DKIM Setup',
+      'type' => MENU_LOCAL_TASK,
+      'access arguments' => array('amazon_ses_configuration'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('amazon_domain_dkim_enable_form'),
+      'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
+  $items['amazon_ses/amazon_get_mail_statistics'] = array(
+  		'title' => 'Email Statistics',
+  		'type' => MENU_NORMAL_ITEM,
+  		'access arguments' => array('amazon_ses_configuration'),
+  		'page callback' => 'drupal_get_form',
+  		'page arguments' => array('amazon_get_mail_statistics_form'),
+  		'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
+
   /* $items['amazon_ses/set_identity_notification_topic'] = array(
       'title' => 'Set Identity Notification Topic',
       'type' => MENU_LOCAL_TASK,
@@ -85,22 +111,7 @@ function simplenews_amazon_ses_menu() {
       'file' => 'includes/simplenews_amazon_ses.admin.inc',
   ); */
   
-  $items['amazon_ses/amazon_domain_dkim_setting'] = array(
-      'title' => 'DKIM Setting',
-      'type' => MENU_NORMAL_ITEM,
-      'access arguments' => array('amazon_ses_configuration'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('amazon_domain_dkim_enable_form'),
-      'file' => 'includes/simplenews_amazon_ses.admin.inc',
-  );
-  $items['amazon_ses/amazon_credential'] = array(
-      'title' => 'Amazon Access Keys',
-      'type' => MENU_NORMAL_ITEM,
-      'access arguments' => array('amazon_ses_configuration'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('amazon_credential_form'),
-      'file' => 'includes/simplenews_amazon_ses.admin.inc',
-  );
+ 
   return $items;
 }
 
@@ -123,13 +134,13 @@ function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
     if (isset($form_state['values'])) {
       
       // When user clicks on Send Request button
-      module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
-      if (($form_state['clicked_button']['#value']) == 'Send Request') {
-        $selected_row = $form_state['values']['list_table'];
-        $actionParameter['Identities'] = array(
-            $form_state['complete form']['amazon_list_identities_update']['list_table']['#options'][$selected_row]['key']
-        );
-        
+    	module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
+    	if (($form_state['clicked_button']['#value']) == 'Send Request') {
+    		$selected_row = $form_state['values']['list_table'];
+    		$actionParameter['Identities'] = array(
+    				$form_state['complete form']['amazon_list_identities_update']['list_table']['#options'][$selected_row]['key']
+    		);
+
         // Call of amazon Query API action GetIdentityDkimAttributes
         $result = simplenews_amazon_ses_send_request('GetIdentityDkimAttributes', $actionParameter); // This request is throttled per second
 
