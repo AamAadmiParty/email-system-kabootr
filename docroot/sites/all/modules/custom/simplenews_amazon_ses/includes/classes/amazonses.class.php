@@ -498,21 +498,21 @@ Class SimpleEmailService {
     if ($request && isset($actionParameter['simpleEmailServiceMessage'])) {
       $simpleEmailServiceMessage = $actionParameter['simpleEmailServiceMessage'];
       $this->setRequestParameter('Action', 'SendEmail');
-      $this->requestHeaders['msid'] = $simpleEmailServiceMessage->msid;
+      
       $i = 1;
       if ($simpleEmailServiceMessage->to != NULL) {
         $this->setRequestParameter('Destination.ToAddresses.member.' . $i, $simpleEmailServiceMessage->to);
       }
   
-      if ($simpleEmailServiceMessage->replyto != NULL) {
-        $this->setRequestParameter('ReplyToAddresses.member.' . $i, $simpleEmailServiceMessage->replyto);
+      if ($simpleEmailServiceMessage->replyTo != NULL) {
+        $this->setRequestParameter('ReplyToAddresses.member.' . $i, $simpleEmailServiceMessage->replyTo);
       }
   
       // $this->setRequestParameter('Source', $simpleEmailServiceMessage->from);
       $this->setRequestParameter('Source', 'tkuldeep.singh@innoraft.com');
   
-      if ($simpleEmailServiceMessage->returnpath != NULL) {
-        $this->setRequestParameter('ReturnPath', $simpleEmailServiceMessage->returnpath);
+      if ($simpleEmailServiceMessage->returnPath != NULL) {
+        $this->setRequestParameter('ReturnPath', $simpleEmailServiceMessage->returnPath);
       }
   
       if ($simpleEmailServiceMessage->subject != NULL && strlen($simpleEmailServiceMessage->subject) > 0) {
@@ -522,37 +522,18 @@ Class SimpleEmailService {
         }
       }
   
-      if ($simpleEmailServiceMessage->messagetext != NULL && strlen($simpleEmailServiceMessage->messagetext) > 0) {
-        $this->setRequestParameter('Message.Body', $simpleEmailServiceMessage->messagetext);
+      if ($simpleEmailServiceMessage->messageText != NULL && strlen($simpleEmailServiceMessage->messageText) > 0) {
+        $this->setRequestParameter('Message.Body', $simpleEmailServiceMessage->messageText);
         if ($simpleEmailServiceMessage->messageTextCharset != NULL && strlen($simpleEmailServiceMessage->messageTextCharset) > 0) {
           $this->setRequestParameter('Message.Body.Text.Content.Charset', $simpleEmailServiceMessage->messageTextCharset);
         }
       }
   
-      if ($simpleEmailServiceMessage->messagehtml != NULL && strlen($simpleEmailServiceMessage->messagehtml) > 0) {
-        $this->setRequestParameter('Message.Body.Html.Data', $simpleEmailServiceMessage->messagehtml);
+      if ($simpleEmailServiceMessage->messageHtml != NULL && strlen($simpleEmailServiceMessage->messageHtml) > 0) {
+        $this->setRequestParameter('Message.Body.Html.Data', $simpleEmailServiceMessage->messageHtml);
         if ($simpleEmailServiceMessage->messageHtmlCharset != NULL && strlen($simpleEmailServiceMessage->messageHtmlCharset) > 0) {
           $this->setRequestParameter('Message.Body.Html.Charset', $simpleEmailServiceMessage->messageHtmlCharset);
         }
-      }
-    }
-  
-    // Parse the http response
-    else {
-      $result = array();
-      if ($responseCode == '200' && isset($actionResponse->MessageId)) {
-        $result['status'] = KABOOTR_MAIL_SENT;
-        $result['error'] = FALSE;
-        return $result;
-      }
-      // Error in response
-      else {
-        $result['Type'] = $actionResponse->Type;
-        $result['Code'] = $actionResponse->Code;
-        $result['Message'] = $actionResponse->Message;
-        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
-        $result['error'] = TRUE;
-        return $result;
       }
     }
   }
@@ -729,28 +710,27 @@ final class SimpleEmailServiceMessage {
 
   // these are public for convenience only
   // these are not to be used outside of the SimpleEmailService class!
-  public $to, $replyto;
-  public $from, $returnpath;
-  public $subject, $messagetext, $messagehtml;
+  public $to, $replyTo;
+  public $from, $returnPath;
+  public $subject, $messageText, $messageHtml;
   public $subjectCharset, $messageTextCharset, $messageHtmlCharset;
-  public $msid;
+ // public $msid;
 
   function __construct($message) {
     
     $this->to = $message['to'];
-    $this->replyto = $message['replyto'];
+    $this->replyTo = $message['replyTo'];
 
     $this->from = $message['from'];
-    $this->returnpath = $message['return_path'];
+    $this->returnPath = $message['returnPath'];
 
-   // $this->subject = $message['subject'];
-    $this->subject = 'Subject';
-    $this->messagetext = $message['body'];
-    $this->messagehtml = $message['htmltext'];
+    $this->subject = $message['subject'];
+    $this->messageText = $message['messageText'];
+    $this->messageHtml = $message['messageHtml'];
 
     $this->subjectCharset = NULL;
     $this->messageTextCharset = NULL;
     $this->messageHtmlCharset = NULL;
-    $this->msid = $message['msid'];
+   // $this->msid = $message['msid'];
   }
 }

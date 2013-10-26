@@ -1,20 +1,15 @@
 <?php 
 
+
 /**
- * Send simplenews newsletters from the spool.
- *
- * Individual newsletter emails are stored in database spool.
- * Sending is triggered by cron or immediately when the node is saved.
- * If sending is successful the message is marked as send in the spool.
- *
- * @return
- *   Returns the amount of sent mails.
- *
- */
+ * @file
+* Amazon SES Mail system
+* Used by drupal core system
+*/
 
 require_once 'classes/amazonses.class.php';
 $path = drupal_get_path('module', 'simplenews_amazon_ses');
-require_once $path . '/vendor/autoload.php';  
+require_once $path . '/vendor/autoload.php';
 use \Guzzle\Http\Client,
 Guzzle\Http\Exception\RequestException;
 use Guzzle\Batch\Batch;
@@ -24,214 +19,32 @@ use Guzzle\Batch\Exception\BatchTransferException;
 use Guzzle\Cache\NullCacheAdapter;
 
 /**
- * Send test version of newsletter.
- *
- * @param mixed $node
- *   The newsletter node to be sent.
- *
- * @ingroup issue
+ * Create system which will send mail using amazon ses api.
  */
-function simplenews_amazon_ses_send_test($node, $test_addresses) {
-  module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
-  // Prevent session information from being saved while sending.
-  if ($original_session = drupal_save_session()) {
-    drupal_save_session(FALSE);
-  }
-  // Force the current user to anonymous to ensure consistent permissions.
-  $original_user = $GLOBALS['user'];
-  $GLOBALS['user'] = drupal_anonymous_user();
-
-  // Send the test newsletter to the test address(es) specified in the node.
-  // Build array of test email addresses
-  // Send newsletter to test addresses.
-  // Emails are send direct, not using the spool.
-  
-  $recipients = array('anonymous' => array(), 'user' => array());
-  foreach ($test_addresses as $mail) {
-    $mail = trim($mail);
-    if (!empty($mail)) {
-      $subscriber = simplenews_subscriber_load_by_mail($mail);
-      if (!$subscriber) {
-        // The source expects a subscriber object with mail and language set.
-        // @todo: Find a cleaner way to do this.
-        $subscriber = new stdClass();
-        $subscriber->uid = 0;
-        $subscriber->mail = $mail;
-        $subscriber->language = $GLOBALS['language']->language;
-      }
-
-      if (!empty($account->uid)) {
-        $recipients['user'][] = $account->name . ' <' . $mail . '>';
-      }
-      else {
-        $recipients['anonymous'][] = $mail;
-      }
-      
-      $source = new SimplenewsSourceNode($node, $subscriber);
-      
-      $actionParameters = '';
-      $message = array(
-          'msid'     => '',  // Used for updating mail status in simplenews letter, so that mail could not be sent twice
-          'to'       => '',
-          'from'     => '',
-          'language' => '',
-          'send'     => TRUE,
-          'subject'  => '',
-          'body'     => '',
-          'return_path' => '',
-          'replyto' => '',
-          'htmltext' => '',
-      );
-      
-          // Build the e-mail
-          $message['to'] = $source->getRecipient();
-          $message['from'] = $source->getFromFormatted();
-          $message['language'] = $source->getLanguage();
-          $message['subject'] = $source->getSubject();
-          $message['htmltext'] = $source->getPlainBody() . "\n" . $source->getPlainFooter();
-          $message['attachments'] = $source->getAttachments();
-          $simpleEmailServiceMessage = new SimpleEmailServiceMessage($message);
-          $actionParameters[]['simpleEmailServiceMessage'] = $simpleEmailServiceMessage;
-    }
-  }
-  
-  // Send test mail
-  $result = simplenews_amazon_ses_send_request('SendEmail', $actionParameters);
-  $status = $result['status'];
-  if ($status == KABOOTR_MAIL_SENT) {
-    if (count($recipients['user'])) {
-      $recipients_txt = implode(', ', $recipients['user']);
-      drupal_set_message(t('Test newsletter sent to user %recipient.', array(
-          '%recipient' => $recipients_txt
-      )));
-    }
-    if (count($recipients['anonymous'])) {
-      $recipients_txt = implode(', ', $recipients['anonymous']);
-      drupal_set_message(t('Test newsletter sent to anonymous %recipient.', array(
-          '%recipient' => $recipients_txt
-      )));
-    }
-  }
-  else {
-    drupal_set_message('Mail Sending faild, For more detail please see log file', 'error');
-  }
-
-  $GLOBALS['user'] = $original_user;
-  if ($original_session) {
-    drupal_save_session(TRUE);
-  }
-}
-
-
-/**
- * Send mail form simplenews spool mails, via amazon SES
- * @return string
- */
-function simplenews_amazon_ses_mail_spool($limit = SIMPLENEWS_UNLIMITED, array $conditions = array()) {
-  module_load_include('inc', 'simplenews', 'includes/simplenews.mail');
-  // Send pending messages from database cache.
-  $limit = variable_get('simplenews_throttle', 20);
-  $spool_list = simplenews_get_spool($limit, $conditions);
-  if ($spool_list) {
-
-    $sent = array();
-    $fail = array();
-    $count_success = 0;
-    
-    // Set true, when all sending mail ara attached to batch queue
-    $send_mail_flag = FALSE;
-    $spool = new SimplenewsSpool($spool_list);
-    $result = simplenews_amazon_ses_send_source($spool);
-
-    foreach ($result as $msid => $row) {
-      
-      // Handle http request exception
-      if ($row['status'] == KABOOTR_AMAZON_REQUEST_EXCEPTION) {
-        return '';
-      }
-      
-      // Update the status of mail spool
-      simplenews_update_spool(array($msid), $row);
-      if ($row['status'] == SIMPLENEWS_SPOOL_DONE) {
-        $count_success ++;
-        if (! isset($sent[$spool_list[$msid]->actual_nid])) {
-          $sent[$spool_list[$msid]->actual_nid] = 1;
-        }
-        else {
-          $sent[$spool_list[$msid]->actual_nid] ++;
-        }
-      }
-      elseif ($row['error']) {
-        $message = t('Message sending failed to !mail as !message', array(
-            '!mail' => $spool_list[$msid]->mail,
-            '!message' => $result['Message']
-        ));
-        watchdog('kabootr', $message);
-        if (! isset($fail[$spool_list[$msid]->actual_nid])) {
-          $fail[$spool_list[$msid]->actual_nid] = 1;
-        }
-        else {
-          $fail[$spool_list[$msid]->actual_nid] ++;
-        }
-      }
-    }
-   
-    // Update subscriber count.
-    simplenews_amazon_ses_update_subscriber_count($sent);
-    
-    // Set the status of last cron run of sending mail
-    variable_set('simplenews_last_cron', REQUEST_TIME);
-    variable_set('simplenews_last_sent', $count_success);
-  } 
-  simplenews_clear_spool();
-  // Update sent status for newsletter admin panel.
-  simplenews_send_status_update();
-}
-
-/**
- * Send a node to an email address.
- *
- * @param $source
- *   The source object.s
- *
- * @return boolean
- *   TRUE if the email was successfully delivered; otherwise FALSE.
- *
- * @ingroup source
- */
-function simplenews_amazon_ses_send_source(SimplenewsSpool $spool = NULL) {
-  
-  $actionParameters = '';
-  $message = array(
-      'msid'     => '',  // Used for updating mail status in simplenews letter, so that mail could not be sent twice
-      'to'       => '',
-      'from'     => '',
-      'language' => '',
-      'send'     => TRUE,
-      'subject'  => '',
-      'body'     => '',
-      'return_path' => '',
-      'replyto' => '',
-      'htmltext' => '',
-  );
-  
-   while ($source = $spool->nextSource()) {
-     foreach ($spool->getProcessed() as $msid => $row) {
-       
-       // Build the e-mail
-       $message['to'] = $source->getRecipient();
-       $message['from'] = $source->getFromFormatted();
-       $message['language'] = $source->getLanguage();
-       $message['subject'] = $source->getSubject();
-       $message['htmltext'] = $source->getPlainBody() . "\n" . $source->getPlainFooter();
-       $message['attachments'] = $source->getAttachments();
-       $message['msid'] = $row->msid;
-       $simpleEmailServiceMessage = new SimpleEmailServiceMessage($message);
-       $actionParameters[]['simpleEmailServiceMessage'] = $simpleEmailServiceMessage;
-     }
-    }
-  $result = simplenews_amazon_ses_send_request('SendEmail', $actionParameters);
-  return $result;
+class AmazonSesMailSystem extends DefaultMailSystem {
+	
+	/**
+	 * Send an e-mail message, using Drupal variables and default settings.
+	 *
+	 * @param $message
+	 *   A message array, as described in hook_mail_alter().
+	 * @return
+	 *   TRUE if the mail was successfully accepted, otherwise FALSE.
+	 */
+	public function mail(array $message) {
+		$message['messageText'] = NULL;
+		$message['messageHtml'] = $message['body'];
+		$message['characterSet'] = 'UTF-8';
+		$message['returnPath'] = $message['headers']['Return-Path'];
+//		$message['returnPath'] = NULL;
+		$message['replyTo'] = NULL;
+		unset($message['headers']);
+		unset($message['body']);
+		$simpleEmailServiceMessage = new SimpleEmailServiceMessage($message);
+		$actionParameters[]['simpleEmailServiceMessage'] = $simpleEmailServiceMessage;
+		$result = simplenews_amazon_ses_send_request('SendEmail', $actionParameters);
+		return $result;
+	}
 }
 
 
@@ -257,14 +70,12 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       
       // Create a client and provide a base URL
     $client = new Client($queryEndPoint);
-    $_SESSION['time'] = 0;
     foreach ($actionParameters as $actionParameter) {
       $simpleEmailService = new SimpleEmailService();
       $simpleEmailService->createQueryRequest($queryAction, $actionParameter);
       
       $request = $client->post('', $simpleEmailService->getRequestHeaders(), $simpleEmailService->getRequestParameter(), $options = array());
       $request->getEventDispatcher()->addListener('request.success', function (Event $e) {
-        $msid = (string) $e['request']->getHeader('msid');
         $queryAction = (string) $e['request']->getHeader('Action');
         $response_xml = (string) $e['response']->getBody();
         $http_response_xml = simplexml_load_string($response_xml);
@@ -272,14 +83,8 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
         // Reterieve query action name from http response object
         $queryActionResult = key((array) $http_response_xml);
         $actionResponse = $http_response_xml->$queryActionResult;
-        if ($msid == '' || $msid == NULL) {
-          $msid = 'msid';
-        }
         $response_code = $e['response']->getStatusCode();
-        $_SESSION['query_response'][$msid]['queryActionResult'] = $queryActionResult;
-        $_SESSION['query_response'][$msid]['actionResponse'] = $actionResponse;
-        $_SESSION['query_response'][$msid]['statusCode'] = $response_code;
-
+      
         // Create log file
         if ($response_code === 200) {
           $string = $e['request']->getPostFields()->__toString();
@@ -290,8 +95,6 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
           $request_id = (string) $http_response_xml->ResponseMetadata->RequestId;
           $message = "[{$mail_sending_time}] [Sending Mail Success] [Request Id : {$request_id}], [Message Id : {$message_id}] {$to_address}\n";
 
-          // Mainly used, when we send test mail
-         // $_SESSION['query_response']['sending_status'] = KABOOTR_MAIL_SENT;
           
           // Write the contents to the file,
           // using the FILE_APPEND flag to append the content to the end of the file
@@ -303,8 +106,9 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       
       try {
         $batch->add($request);
+        $result = KABOOTR_MAIL_SENT;
       } catch ( BatchTransferException $e ) {
-        $result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
+        $result = KABOOTR_MAIL_NOT_SENT;
         $batch_obj = $e->getBatch();
         $request_string = $batch_obj[0]->getPostFields()->__toString();
         $to_address = simplenews_amazon_ses_get_post_field($request_string, 'Destination.ToAddresses.member.1');
@@ -335,24 +139,6 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       }
     }
   	  
-       
-    if (isset($_SESSION['query_response'])) {
-      $query_response = $_SESSION['query_response'];
-      foreach ($query_response as $msid => $value) {
-        $queryActionResult = $value['queryActionResult'];
-        $length = strpos($queryActionResult, 'Result');
-        $queryAction = substr($queryActionResult, 0, $length);
-    
-        if ($msid == 'msid') {
-          $result = $simpleEmailService->getQueryResponse($queryAction, $value['actionResponse'], $value['statusCode']);
-        }
-        else {
-          $result[$msid] = $simpleEmailService->getQueryResponse($queryAction, $value['actionResponse'], $value['statusCode']);
-        }
-      }
-      unset($_SESSION['query_response']);
-    }
-    
   }
   else {
     $simpleEmailService = new SimpleEmailService();
@@ -421,21 +207,6 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
   }
  */  
   return $result;
-}
-
-
-/**
- * Update subscriber count.
- */
-function simplenews_amazon_ses_update_subscriber_count($sent) {
-   foreach ($sent as $nid => $count) {
-    db_update('simplenews_newsletter')
-      ->condition('nid', $nid)
-      ->expression('sent_subscriber_count', 'sent_subscriber_count + :count', array(
-        ':count' => $count
-    ))
-    ->execute();
-  }
 }
 
 /**
