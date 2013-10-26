@@ -123,12 +123,6 @@ function simplenews_amazon_ses_menu() {
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
 
-	//$value = array('simplenews' => 'AmazonSesMailSystem');
-//	variable_set('mail_system', $value);
-	$mail_modes = variable_get('mail_system', array('default-system' => 'DefaultMailSystem'));
-	$mail_modes['default-system'] = 'AmazonSesMailSystem';
-	variable_set('mail_system', $mail_modes);
-	
   // Add validation, if sender's mail is verified by Amazon SES
   if ($form_id == 'simplenews_admin_category_form') {
     $form['simplenews_sender_information']['from_address']['#element_validate'] = array('verify_email_identity_amazon');

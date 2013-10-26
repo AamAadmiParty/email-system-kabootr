@@ -1,0 +1,24 @@
+<?php 
+
+/**
+ * @file
+ * The installation instructions for the SMTP Authentication Support.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function simplenews_amazon_ses_enable() {
+	$mail_modes = variable_get('mail_system', array('default-system' => 'DefaultMailSystem'));
+	$mail_modes['default-system'] = 'AmazonSesMailSystem';
+	variable_set('mail_system', $mail_modes);
+}
+
+/**
+ * Implements hook_disable().
+ */
+function simplenews_amazon_ses_disable() {
+	$mail_modes = variable_get('mail_system');
+	$mail_modes['default-system'] = 'DefaultMailSystem';
+	variable_set('mail_system', $mail_modes);
+}
