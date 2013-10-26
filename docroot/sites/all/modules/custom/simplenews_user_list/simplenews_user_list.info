@@ -1,0 +1,4 @@
+name = Simplenews User List
+description = "Create user list along newsletter"
+package = Kabootr
+core = 7.x
