@@ -362,11 +362,11 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
     // Create a client and provide a base URL
     $client = new Client($queryEndPoint);
     $request = $client->post('', $simpleEmailService->getRequestHeaders(), $simpleEmailService->getRequestParameter(), $options = array());
-    
     try {
       $response = $request->send();
       $response_xml = (string) $response->getBody();
       $http_response_xml = simplexml_load_string($response_xml);
+     
       // If there is error in response
       if (isset($http_response_xml->Error)) {
         $queryActionResult = 'Error';

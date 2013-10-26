@@ -8,9 +8,6 @@ define('KABOOTR_AMAZON_REQUEST_SUCCESS', 1);
 /**
  * GetIdentityVerificationAttributes Results
  */
-define('KABOOTR_IDENTITY_VERIFICATION_NOT', 0);
-define('KABOOTR_IDENTITY_VERIFICATION_SUCCESS', 1);
-define('KABOOTR_IDENTITY_VERIFICATION_PENDING', 2);
 
 /**
  * SendMail Status
@@ -210,21 +207,27 @@ function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
  */
 function verify_email_identity_amazon($element, &$form_state) {
   if (isset($element['#value'])) {
-    $actionParameter['identity'] = $element['#value'];
+    $actionParameter['Identities'][] = $element['#value'];
     
     // Call the amazon Query API action GetIdentityVerificationAttributes
-    $result = simplenews_amazon_ses_send_request('GetIdentityVerificationAttributes', $actionParameter, '');
+    module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
     
+    $result = simplenews_amazon_ses_send_request('GetIdentityVerificationAttributes', $actionParameter, '');
     // Display the result in table returned by Amazon SES
     switch ($result['status']) {
-    	case KABOOTR_IDENTITY_VERIFICATION_PENDING :
-    	  form_error($element, t('!email address is in pending state, yet not verified by Amazon SES. \n so Please contact amazon SES or change the mail'
-    	      , array('!email' => $element['#value'])));
-    	      break;
-    	case KABOOTR_IDENTITY_VERIFICATION_NOT :
-    	  form_error($element, t('Please send request for verifying !email  address to Amazon SES, Or change the mail'
-    	      , array('!email' => $element['#value'])));
-    	  break;
+    	case KABOOTR_AMAZON_REQUEST_SUCCESS :
+    		if (isset($result['token']['row0']['VerificationStatus'])) {
+    			$id_status = $result['token']['row0']['VerificationStatus'];
+    			if ($id_status == 'Pending') {
+    				form_error($element, t('!email address is in pending state, yet not verified by Amazon SES. \n so Please contact amazon SES or change the mail'
+    						, array('!email' => $element['#value'])));
+    			}
+    		}
+    		else {
+    			form_error($element, t('Please send request for verifying !email  address to Amazon SES, Or change the mail'
+    					, array('!email' => $element['#value'])));
+    		}	
+    		break;
     	case KABOOTR_AMAZON_REQUEST_EXCEPTION :
     	  form_error($element,t('Sending request to amazon is failed!, Please try again'));
     	      break;
@@ -237,7 +240,6 @@ function verify_email_identity_amazon($element, &$form_state) {
  */
 //This function is currently commented, the functions run here will be tesed in form alter
 function simplenews_amazon_ses_cron() {
-  module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
   simplenews_amazon_ses_mail_spool();
   //simplenews_amazon_ses_control_sending_mail();
   // Update sent status for newsletter admin panel.

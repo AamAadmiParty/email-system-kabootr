@@ -318,21 +318,22 @@ Class SimpleEmailService {
       $result = array();
       if ($responseCode == '200') {
         $result['error'] = FALSE;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_SUCCESS;
         $entries = $actionResponse->VerificationAttributes->entry;
         $i = 0;
         foreach ($entries as $entry) {
-          $result['row' . $i]['key'] = (string)$entry->key;
+          $result['token']['row' . $i]['key'] = (string)$entry->key;
           $value = $entry->value;
           if (isset($value->VerificationStatus)) {
-          	$result['row' . $i]['VerificationStatus'] = (string)$value->VerificationStatus;
+          	$result['token']['row' . $i]['VerificationStatus'] = (string)$value->VerificationStatus;
           }
           // The verification token for a domain identity. Null for email address identities.
           if (isset($value->VerificationToken)) {
-            $domain = $result['row' . $i]['key'];
+            $domain = $result['token']['row' . $i]['key'];
             $domain_record_set = "<div class = ''><b>Name: </b> _amazonses.{$domain} <br>
                                  <b>Type:</b> TXT <br>
                                  <b>Value:</b> {$value->VerificationToken}";
-          	$result['row' . $i]['DomainRecordSet'] = $domain_record_set;
+          	$result['token']['row' . $i]['DomainRecordSet'] = $domain_record_set;
           }
           $i++;
         }
@@ -343,7 +344,7 @@ Class SimpleEmailService {
         $result['Type'] = $actionResponse->Type;
         $result['Code'] = $actionResponse->Code;
         $result['Message'] = $actionResponse->Message;
-        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;;
+        $result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
         $result['error'] = TRUE;
         return $result;
       }

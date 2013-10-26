@@ -236,7 +236,7 @@ function get_indentity_list($identity_type = NULL) {
     if (isset($result['member'])) {
       $actionParameter['Identities'] = $result['member'];
       $result = simplenews_amazon_ses_send_request('GetIdentityVerificationAttributes', $actionParameter);
-      $options = $result;
+      $options = $result['token'];
       
       // Display the response of calling of Amazon SES API
       if (isset($result['status'])) {
@@ -260,7 +260,6 @@ function get_indentity_list($identity_type = NULL) {
             return $form ;
         }
       }
-      unset($options['error']);
       $_SESSION['amazon_identity_list'] = $options;
     }
   }
