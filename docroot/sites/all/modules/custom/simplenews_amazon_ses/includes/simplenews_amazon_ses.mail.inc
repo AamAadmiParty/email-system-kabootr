@@ -35,8 +35,8 @@ class AmazonSesMailSystem extends DefaultMailSystem {
 		$message['messageText'] = NULL;
 		$message['messageHtml'] = $message['body'];
 		$message['characterSet'] = 'UTF-8';
-		$message['returnPath'] = $message['headers']['Return-Path'];
-//		$message['returnPath'] = NULL;
+	//	$message['returnPath'] = $message['headers']['Return-Path'];
+  	$message['returnPath'] = NULL;
 		$message['replyTo'] = NULL;
 		unset($message['headers']);
 		unset($message['body']);
