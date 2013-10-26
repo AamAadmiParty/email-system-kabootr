@@ -15,9 +15,8 @@ define('KABOOTR_IDENTITY_VERIFICATION_PENDING', 2);
 /**
  * SendMail Status
  */
-define('KABOOTR_MAIL_NOT_SENT', 0);
-define('KABOOTR_MAIL_PENDING', 1);
-define('KABOOTR_MAIL_SENT', 2);
+define('KABOOTR_MAIL_NOT_SENT', FALSE);
+define('KABOOTR_MAIL_SENT', TRUE);
 
 /**
  * VerifyEmailIdentity Results
@@ -124,6 +123,12 @@ function simplenews_amazon_ses_menu() {
 
 function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
 
+	//$value = array('simplenews' => 'AmazonSesMailSystem');
+//	variable_set('mail_system', $value);
+	$mail_modes = variable_get('mail_system', array('default-system' => 'DefaultMailSystem'));
+	$mail_modes['default-system'] = 'AmazonSesMailSystem';
+	variable_set('mail_system', $mail_modes);
+	
   // Add validation, if sender's mail is verified by Amazon SES
   if ($form_id == 'simplenews_admin_category_form') {
     $form['simplenews_sender_information']['from_address']['#element_validate'] = array('verify_email_identity_amazon');
@@ -188,16 +193,6 @@ function simplenews_amazon_ses_form_alter(&$form, &$form_state, $form_id) {
     }
   }
   
-  // Alter test newsletter, mail should be send via amaozn ses
-  if ($form_id == 'simplenews_node_tab_send_form') {
-    module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.admin');
-    $form['#submit'] = array('simplenews_amazon_ses_node_tab_send_form_submit');
-  }
-  
-  if ($form_id == 'simplenews_admin_newsletter_issues') {
-    module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.admin');
-    $form['admin']['options']['operation']['#default_value'] = 'activate_amazon';
-  }
  // require_once 'includes/classes/guzzle_request.php';
   //send_request_guzzle();
   
@@ -230,29 +225,4 @@ function verify_email_identity_amazon($element, &$form_state) {
     	      break;
     }
   }
-}
-
-/**
- * Implements hook_cron().
- */
-//This function is currently commented, the functions run here will be tesed in form alter
-function simplenews_amazon_ses_cron() {
-  module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
-  simplenews_amazon_ses_mail_spool();
-  //simplenews_amazon_ses_control_sending_mail();
-  // Update sent status for newsletter admin panel.
-}
-
-/**
- * Implements hook_simplenews_issue_operations().
- */
-function simplenews_amazon_ses_simplenews_issue_operations() {
-  // @todo: future ideas: 'pause' => t('Pause sending'), 'resume' => t('Resume sending'), 'cancel' => t('Cancel sending'), 'publish' => t('Publish'), 'unpublish' => t('Unpublish'));
-  $operations = array(
-      'activate_amazon' => array(
-          'label' => t('Send via Amazon'),
-          'callback' => 'simplenews_amazon_ses_issue_send',
-      ),
-  );
-  return $operations;
 }
