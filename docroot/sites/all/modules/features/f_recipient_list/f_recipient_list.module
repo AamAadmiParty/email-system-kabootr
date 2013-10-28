@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Recipient List feature.
+ */
+
+include_once 'f_recipient_list.features.inc';
