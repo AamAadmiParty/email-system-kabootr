@@ -44,12 +44,34 @@ function f_kabootr_left_navigation_default_panels_mini() {
       'admin_title' => '',
       'title' => '',
       'body' => '<?php
-    print \'<div class = "kabootr-menu"><ul>\';
+    print \'<div class = "kabootr-menu">\';
+    print \'<ul>\';
+    print \'<li>\' . l(\'AWS Access Keys\', \'admin/kabootr-settings\') . \'</li>\';
+    print \'<ul>\';
     print \'<li>\' . l(\'AWS Access Keys\', \'admin/kabootr-settings/aws-access-keys\') . \'</li>\';
     print \'<li>\' . l(\'Verify Sender ID\', \'admin/kabootr-settings/aws-verify-ses-sender-id\') . \'</li>\';
     print \'<li>\' . l(\'Sender ID List\', \'admin/kabootr-settings/aws-ses-sender-id-list\') . \'</li>\';
     print \'<li>\' . l(\' DKIM Setup\', \'admin/kabootr-settings/dkim-setup\') . \'</li>\';
-    print \'</ul></div>\';
+    print \'</ul>\';
+
+    print \'<li>\'. l(\'Pepole\', \'admin/config/people/accounts/fields\') . \'</li>\';
+    print \'<ul>\';
+    print \'<li>\' . l(\'Data Fields \', \'admin/config/people/accounts/fields\') . \'</li>\';
+    print \'<li>\' . l(\'Create New List\', \'admin/config/services/simplenews/add\') . \'</li>\';
+    print \'<li>\' . l(\'Edit Existing Lists\', \'admin/config/services/simplenews\') . \'</li>\';
+    print \'<li>\' . l(\' Import Records 1\', \'import/recipient_list\') . \'</li>\';
+    print \'<li>\' . l(\' Import Records 2\', \'\') . \'</li>\';
+    print \'</ul>\';
+
+    print \'<li>\'. l(\'Email Campaigns\', \'\') . \'</li>\';
+    print \'<ul>\';
+    print \'<li>\' . l(\'Create new campaign\', \'node/add/simplenews\') . \'</li>\';
+    print \'<li>\' . l(\'Draft / Unsent campaigns\', \'\') . \'</li>\';
+    print \'<li>\' . l(\'Campaigns Status\', \'admin/content/simplenews\') . \'</li>\';
+    print \'<li>\' . l(\' Templates\', \'\') . \'</li>\';
+    print \'</ul>\';
+    print \'</ul>\';
+    print \'</div>\';
 ?>',
       'format' => 'php_code',
       'substitute' => TRUE,
