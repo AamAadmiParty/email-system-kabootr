@@ -41,20 +41,35 @@ function simplenews_user_list_schema() {
   );
   return $schema;
 }
+
 /**
- * Implements hook_update().
- * Subcribe the all the users intially to Master newsletter category.
+ * Implements hook_enable().
  */
-function simplenews_user_list_update_7001() {
-  $master_newsletter_tid = variable_get('master_simplenews_category', '');
-  if (! $master_newsletter_tid == '') {
-    $get_all_users_query = db_select('users', 'u')
-    ->fields('u', array('mail'))
-    ->condition('uid', '0', '<>')
-    ->execute()->fetchAll();
-    foreach ($get_all_users_query as $value) {
-      $email = $value->mail;
-      simplenews_subscribe_user($email, $master_newsletter_tid, FALSE, 'Default Subscribe', '');
-    }
-  }
+function simplenews_user_list_enable() {
+	
+	// Create kabootr user role
+	$role = new stdClass();
+	$role->name = 'Kabootr User';
+	user_role_save($role);
+	
+	// Role to grant the permissions to
+	$kabootr_user_role = user_role_load_by_name('Kabootr User');
+	$kabootr_user_rid = $kabootr_user_role->rid;
+	
+	// Define our 'kabootr_admin' role permissions
+	$kabootr_user_permissions = array(
+			'kabootr_recipient_list' => TRUE
+	);
+  // Grant permission
+	user_role_change_permissions($kabootr_user_rid, $kabootr_user_permissions);
 }
+
+/**
+ * Implements hook_disable().
+ */
+function simplenews_user_list_disable() {
+	// Create kabootr user role
+	user_role_delete('Kabootr User');
+}
+
+

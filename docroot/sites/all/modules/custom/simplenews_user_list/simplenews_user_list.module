@@ -7,11 +7,24 @@
  */
 
 /**
+ * Implements hook_permission
+ */
+function simplenews_user_list_permission() {
+	return array(
+			'kabootr_recipient_list' => array(
+					'title' => t('Create Kabootr Recipient List'),
+			),
+	);
+}
+
+/**
  * Implements hook_form_alter.
  */
 function simplenews_user_list_form_alter(&$form, &$form_state, $form_id) {
-  // Add users filters in creation of Newsletter category
-  if ($form_id == 'simplenews_admin_category_form') {
+	// Add users filters in creation of Newsletter category
+	// Role to grant the permissions to
+	
+  if ($form_id == 'simplenews_admin_category_form' && user_access('kabootr_recipient_list')) {
     include 'includes/simplenews_user_list.admin.inc';
     $form['user_filter'] = array(
         '#type' => 'fieldset',
@@ -46,34 +59,4 @@ function simplenews_user_list_form_alter(&$form, &$form_state, $form_id) {
       drupal_set_message($message, 'warning');
     }
   }
-}
-
-/**
- * Provide information about our custom placeholder/token.
- *
- * @see httx://api.drupal.org/api/drupal/modules--system--system.api.php/function/hook_token_info/7
- * @see httx://api.lullabot.com/token_example_token_info/7
- * @return array An associative array of available tokens and token types.
- *         Implements hook_token_info().
- */
-function simplenews_user_list_token_info() {
-  $info['tokens']['simplenews']['master_newsletter'] = array(
-      'name' => t('master_newsletter'),
-      'description' => t('Give master newsletter.')
-  );
-  return $info;
-}
-function simplenews_user_list_tokens($type, $tokens, array $data = array(), array $options = array()) {
-  $replacements = array();
-  if ($type == 'simplenews' && ! empty($data['simplenews'])) {
-    foreach ($tokens as $name => $original) {
-      switch($name) {
-        case 'master_newsletter' :
-          $master_newsletter_tid = variable_get('master_simplenews_category', '');
-          $replacements[$original] = $master_newsletter_tid;
-          break;
-      }
-    }
-  }
-  return $replacements;
 }
