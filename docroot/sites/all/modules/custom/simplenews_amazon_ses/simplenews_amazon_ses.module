@@ -97,6 +97,14 @@ function simplenews_amazon_ses_menu() {
   		'page arguments' => array('amazon_get_mail_statistics_form'),
   		'file' => 'includes/simplenews_amazon_ses.admin.inc',
   );
+  $items['admin/kabootr-settings/test-feedback'] = array(
+  		'title' => 'Test Feedback',
+  		'type' => MENU_NORMAL_ITEM,
+  		'access arguments' => array('amazon_ses_configuration'),
+  		'page callback' => 'drupal_get_form',
+  		'page arguments' => array('test_feedback_form'),
+  		'file' => 'includes/simplenews_amazon_ses.admin.inc',
+  );
 
   /* $items['amazon_ses/set_identity_notification_topic'] = array(
       'title' => 'Set Identity Notification Topic',
@@ -223,3 +231,33 @@ function verify_email_identity_amazon($element, &$form_state) {
     }
   }
 }
+
+/**
+ * Save current feedback status of mail sent
+ * @param string $feedback_type Must pass of name of column
+ * @param string $mail User's mail id, who has to unsubsribed
+ * @param stirng $tid Newsletter Cateogry
+ * @param string $nid Newsletter Node id
+*/
+function simplenews_amazon_ses_update_feedback($feedback_type = NULL, $mail = NULL, $tid = NULL, $nid = NULL) {
+	
+	if ($mail != NULL && $tid != NULL) {
+		simplenews_unsubscribe_user($mail, $tid, FALSE, 'action');
+		
+		if ($feedback_type != NULL) {
+			$old_feedback = db_select('simplenews_newsletter', 'sn')
+			->fields('sn', array($feedback_type))
+			->condition('nid', $nid, '=')
+			->execute()
+			->fetchAssoc();
+			$new_feedback = ((int) $old_feedback[$feedback_type]) + 1;
+			db_update('simplenews_newsletter')
+			->fields(array(
+					$feedback_type => $new_feedback,
+			))
+			->condition('nid', $nid, '=')
+			->execute();
+		}
+	}
+	
+}  

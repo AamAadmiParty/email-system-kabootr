@@ -40,3 +40,30 @@ function simplenews_amazon_ses_disable() {
 	// Create kabootr user role
 	user_role_delete('Kabootr Administrator');
 }
+
+function simplenews_amazon_ses_update_7001() {
+	$complain_count = array(
+        'description' => 'The count of complain to the newsletter.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      );
+	db_add_field( 'simplenews_newsletter', 'complain_count', $complain_count);
+	
+	$bounces_count = array(
+			'description' => 'The count of bounces to the newsletter.',
+			'type' => 'int',
+			'not null' => TRUE,
+			'default' => 0,
+	);
+	db_add_field( 'simplenews_newsletter', 'bounces_count', $bounces_count);
+	
+	$unsubcriber_count = array(
+			'description' => 'The count of unsubscriber to the newsletter.',
+			'type' => 'int',
+			'not null' => TRUE,
+			'default' => 0,
+	);
+	db_add_field( 'simplenews_newsletter', 'unsubscriber_count', $unsubcriber_count);
+	
+}
