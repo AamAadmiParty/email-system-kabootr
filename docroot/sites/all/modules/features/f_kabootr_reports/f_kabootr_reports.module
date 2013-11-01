@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Kabootr Reports feature.
+ */
+
+include_once 'f_kabootr_reports.features.inc';
