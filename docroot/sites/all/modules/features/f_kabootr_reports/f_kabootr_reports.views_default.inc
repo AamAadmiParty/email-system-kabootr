@@ -110,7 +110,7 @@ function f_kabootr_reports_views_default_views() {
 
   /* Display: Page */
   $handler = $view->new_display('page', 'Page', 'page');
-  $handler->display->display_options['path'] = 'kabootr-reports';
+  $handler->display->display_options['path'] = 'kabootr/reports';
   $export['kabootr_reports'] = $view;
 
   return $export;
