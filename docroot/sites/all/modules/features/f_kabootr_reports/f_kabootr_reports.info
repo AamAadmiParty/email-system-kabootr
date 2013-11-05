@@ -7,5 +7,5 @@ project = f_kabootr_reports
 dependencies[] = views
 features[ctools][] = views:views_default:3.0
 features[features_api][] = api:2
-features[views_view][] = kabootr_reporting
+features[views_view][] = kabootr_reports
 features_exclude[dependencies][ctools] = ctools
