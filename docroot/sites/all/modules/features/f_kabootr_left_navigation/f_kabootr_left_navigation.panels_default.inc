@@ -70,6 +70,10 @@ function f_kabootr_left_navigation_default_panels_mini() {
     print \'<li>\' . l(\'Campaigns Status\', \'admin/content/simplenews\') . \'</li>\';
     print \'<li>\' . l(\' Templates\', \'\') . \'</li>\';
     print \'</ul>\';
+    print \'<li>\'. l(\'Reports\',\'kabootr/reports\') . \'</li>\';
+    print \'<ul>\';
+    print \'<li>\' . l(\'Newsletter Category Vise\', \'kabootr/reports\') . \'</li>\';
+    print \'</ul>\';
     print \'</ul>\';
     print \'</div>\';
 ?>',
