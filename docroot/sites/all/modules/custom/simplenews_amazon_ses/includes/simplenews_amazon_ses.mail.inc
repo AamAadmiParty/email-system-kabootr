@@ -7,7 +7,6 @@
 * Used by drupal core system
 */
 
-require_once 'classes/amazonses.class.php';
 $path = drupal_get_path('module', 'simplenews_amazon_ses');
 require_once $path . '/vendor/autoload.php';
 use \Guzzle\Http\Client,
@@ -56,6 +55,9 @@ class AmazonSesMailSystem extends DefaultMailSystem {
  * @return Parsed http response, used to display to user or to take system appropriate aciton 
  */
 function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
+	
+	require_once 'classes/amazonses.class.php';
+	
   $result = NULL;
   
   if ($queryAction === 'SendEmail') {
@@ -165,6 +167,7 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       $result = $simpleEmailService->getQueryResponse($queryAction, $actionResponse, $response->getStatusCode());
     } catch ( RequestException $e ) {
         $errorMessage = $e->getMessage();
+        print $errorMessage;
         if (strpos($errorMessage, '403')) {
           $path = drupal_get_path('module', 'simplenews_amazon_ses');
           $file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
@@ -250,5 +253,52 @@ function simplenews_amazon_ses_get_post_field($field_data, $field_name = NULL) {
   else {
     return $post_fields;
   }
-  
+}
+
+/**
+ * Send the request to amazon ses, which directly call Amazon SES API
+ * After sending request, it parse the http response returned by Amazon API call
+ * @param $qyeryAction Name of Action which is to be called,
+ *        $actionParameter Additonal parameter needed to complete the call Amazon SES API
+ * @return Parsed http response, used to display to user or to take system appropriate aciton
+ */
+function simplenews_amazon_ses_send_request_sns($queryAction, $actionParameters) {
+	require_once 'classes/amazonsns.class.php';
+	
+	$simpleNotificationService = new SimpleNotificationService();
+	$simpleNotificationService->createQueryRequest($queryAction, $actionParameters);
+	$queryEndPoint = SimpleNotificationService::queryEndPoint;
+	
+	// Create a client and provide a base URL
+	$client = new Client($queryEndPoint);
+	$request = $client->post('', $simpleNotificationService->getRequestHeaders(), $simpleNotificationService->getRequestParameter(), $options = array());
+	try {
+		$response = $request->send();
+		$response_xml = (string) $response->getBody();
+		$http_response_xml = simplexml_load_string($response_xml);
+		 
+		// If there is error in response
+		if (isset($http_response_xml->Error)) {
+			$queryActionResult = 'Error';
+			$actionResponse = $http_response_xml->Error;
+		}
+		else {
+			$queryActionResult = $queryAction . 'Result';
+			$actionResponse = $http_response_xml->$queryActionResult;
+		}
+		$result = $simpleNotificationService->getQueryResponse($queryAction, $actionResponse, $response->getStatusCode());
+	} catch ( RequestException $e ) {
+		$errorMessage = $e->getMessage();
+		print $errorMessage;
+		if (strpos($errorMessage, '403')) {
+			$path = drupal_get_path('module', 'simplenews_amazon_ses');
+			$file_name = $_SERVER['DOCUMENT_ROOT'] . '/' . $path . "/amazon_credential.txt";
+			$credential_link = l('Update Your AWS Credential','amazon_ses/amazon_credential');
+			drupal_set_message("You AWS credentials are not matching, please update them {$credential_link}", 'error');
+		}
+		else {
+			$result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
+		}
+	}
+	
 }

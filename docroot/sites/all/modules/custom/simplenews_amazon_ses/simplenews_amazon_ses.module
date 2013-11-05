@@ -271,7 +271,17 @@ function simplenews_amazon_ses_receive_sns($json) {
 	if($json->Type == "SubscriptionConfirmation") {
 	$actionParameters['Token'] = $json->Token;
 	$actionParameters['TopicArn'] = $json->TopicArn;
-	$result = simplenews_amazon_ses_send_request('ConfirmSubscription', $actionParameters);
-	}
+	$result = simplenews_amazon_ses_send_request_sns('ConfirmSubscription', $actionParameters);
+ }
+ 
+ else {
+ 	$obj = json_decode($data->Message);
+ 	$notificationType = $obj->{'notificationType'};
+ 	$bounceType = $obj->{'bounce'}->{'bounceType'};
+ 	$problem_email = $obj->{'bounce'}->{'bouncedRecipients'};
+ 	$problem_email = $problem_email[0]->{'emailAddress'};
+ 	$from_email = $obj->{'mail'}->{'source'};
+  watchdog('problem email', $problem_email); 	
+ }
 }
 	

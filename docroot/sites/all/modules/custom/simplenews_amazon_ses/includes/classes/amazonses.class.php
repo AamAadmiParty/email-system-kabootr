@@ -108,10 +108,6 @@ Class SimpleEmailService {
       case 'ListIdentities':
         $result = $this->listIdentities('', FALSE, $actionResponse, $responseCode);
         break;
-
-      case 'ConfirmSubscription':
-        $result = $this->listIdentities('', FALSE, $actionResponse, $responseCode);
-        break;
     }
     return $result;
   }
@@ -169,10 +165,6 @@ Class SimpleEmailService {
         break;
       case 'VerifyEmailIdentity' :
         $this->verifyEmailIdentity($actionParameter, TRUE);
-        break;
-        
-      case 'ConfirmSubscription' :
-        $this->confirmSubscription($actionParameter, TRUE);
         break;
     }
   }
@@ -709,48 +701,6 @@ Class SimpleEmailService {
         return $result;
       }
     }
-  }
-  
-  /**
-   * Call Query API action VerifyDomaindentity,
-   * Verifies a domain.
-   * This action is throttled at one request per second.
-   * @param Array $actionParameter Given a identitiy(email addresse or domain),
-   * @param Boolean $request
-   * @param string $actionResponse
-   * @param string $responseCode
-   * @return Array: A TXT record that must be placed in the DNS settings for the domain, in order to complete domain
-   verification.
-   * @link http://docs.aws.amazon.com/ses/latest/APIReference/API_VerifyDomainIdentity.html
-   */
-  private function confirmSubscription($actionParameter, $request, $actionResponse = '', $responseCode = '0') {
-  	if ($request) {
-  		$this->setRequestParameter('Action', 'ConfirmSubscription');
-  		if (isset($actionParameter['Token'])) {
-  			$this->setRequestParameter('Token', $actionParameter['Token']);
-  		}
-  		if (isset($actionParameter['TopicArn'])) {
-  			$this->setRequestParameter('TopicArn', $actionParameter['ToicArn']);
-  		}
-  	}
-  	else {
-  		$result = array();
-  		if ($responseCode == '200') {
-  			$result['error'] = FALSE;
-  			$result['status'] = KABOOTR_AMAZON_REQUEST_SUCCESS;
-  			$result['subscriptionArn'] = (string)$actionResponse->SubscriptionArn;
-  			return $result;
-  		}
-  		// Error in response
-  		else {
-  			$result['Type'] = $actionResponse->Type;
-  			$result['Code'] = $actionResponse->Code;
-  			$result['Message'] = $actionResponse->Message;
-  			$result['status'] = KABOOTR_AMAZON_REQUEST_FAILURE;
-  			$result['error'] = TRUE;
-  			return $result;
-  		}
-  	}
   }
 }
 
