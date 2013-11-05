@@ -259,5 +259,19 @@ function simplenews_amazon_ses_update_feedback($feedback_type = NULL, $mail = NU
 			->execute();
 		}
 	}
+}
+
+/**
+ * 
+ */
+function simplenews_amazon_ses_receive_sns($json) {
 	
-}  
+	module_load_include('inc', 'simplenews_amazon_ses', 'includes/simplenews_amazon_ses.mail');
+	//Handle A Subscription Request Programmatically
+	if($json->Type == "SubscriptionConfirmation") {
+	$actionParameters['Token'] = $json->Token;
+	$actionParameters['TopicArn'] = $json->TopicArn;
+	$result = simplenews_amazon_ses_send_request('ConfirmSubscription', $actionParameters);
+	}
+}
+	
