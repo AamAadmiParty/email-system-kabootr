@@ -766,5 +766,5 @@ function test_feedback_form($form, &$form_state) {
 
 function test_feedback_form_submit($form, &$form_state) {
 	$values = $form_state['values'];
-	simplenews_amazon_ses_update_feedback($values['action'], $values['mail'], $values['tid'], $values['node_id']);
+	simplenews_amazon_ses_update_feedback($values['action'], $values['mail'], '');
 }

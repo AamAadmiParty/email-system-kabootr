@@ -243,13 +243,13 @@ function simplenews_amazon_ses_update_feedback($feedback_type = '', $mail = '', 
 	
 	// Inactivate the subscriber, so in future this subscriber will never get subscritption
 	// to other newsletter category
-	if ($mail != NULL) {
+	if ($mail != '') {
 		$subscriber = simplenews_subscriber_load_by_mail($mail);
 		$status = 0;
     $subscriber->activated = $status;
     simplenews_subscriber_save($subscriber);
 		
-		if ($feedback_type != NULL) {
+		if ($feedback_type != '') {
 			
 			$nid = kabootr_mail_sent_load($message_id);
 			
