@@ -27,6 +27,7 @@ dependencies[] = file
 dependencies[] = flag
 dependencies[] = help
 dependencies[] = kabootr_notification_reports
+dependencies[] = kabootr_configuration
 dependencies[] = list
 dependencies[] = menu
 dependencies[] = module_filter
