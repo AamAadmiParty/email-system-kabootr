@@ -114,6 +114,8 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
           $request_id = (string) $http_response_xml->ResponseMetadata->RequestId;
           $message = "[{$mail_sending_time}] [Sending Mail Success] [Request Id : {$request_id}], [Message Id : {$message_id}] {$to_address}\n";
 
+          // Set for storing messags id backend system
+          $_SESSION['amazon_ses']['message_id'] = $message_id;
 
           // Write the contents to the file,
           // using the FILE_APPEND flag to append the content to the end of the file

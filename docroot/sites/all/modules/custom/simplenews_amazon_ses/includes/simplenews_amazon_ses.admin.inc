@@ -741,7 +741,7 @@ function test_feedback_form($form, &$form_state) {
 			'#description' => t("Select name of action"),
 			'#options' => array(
 					'complain_count' => 'Complain',
-					'bounces_count' => 'Bounces',
+					'bounce_count' => 'Bounces',
 					'unsubscriber_count' => 'Unsubsribe'
 					),
 	);

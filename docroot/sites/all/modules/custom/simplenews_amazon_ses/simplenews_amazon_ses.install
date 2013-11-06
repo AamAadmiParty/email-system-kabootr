@@ -56,7 +56,7 @@ function simplenews_amazon_ses_update_7001() {
 			'not null' => TRUE,
 			'default' => 0,
 	);
-	db_add_field( 'simplenews_newsletter', 'bounces_count', $bounces_count);
+	db_add_field( 'simplenews_newsletter', 'bounce_count', $bounces_count);
 	
 	$unsubcriber_count = array(
 			'description' => 'The count of unsubscriber to the newsletter.',

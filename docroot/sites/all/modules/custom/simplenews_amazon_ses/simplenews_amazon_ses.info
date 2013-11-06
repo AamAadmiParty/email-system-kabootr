@@ -6,3 +6,5 @@ version = 7.x-1.0
 project = simplenews_amazon_ses
 
 files[] = includes/simplenews_amazon_ses.mail.inc
+
+dependencies[] = simplenews_extras
