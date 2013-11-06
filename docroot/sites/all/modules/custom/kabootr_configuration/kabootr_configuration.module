@@ -1,0 +1,12 @@
+<?php
+
+/**
+ * @file
+ *   kabootr_configuration.module
+ *
+ * @author
+ *   Gaurav Goyal
+ *
+ * @desc
+ *   This module contains the configuration related settings for the kabootr.
+ */
