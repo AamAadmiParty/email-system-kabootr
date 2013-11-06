@@ -241,9 +241,14 @@ function verify_email_identity_amazon($element, &$form_state) {
 */
 function simplenews_amazon_ses_update_feedback($feedback_type = NULL, $mail = NULL, $tid = NULL, $nid = NULL) {
 	
-	if ($mail != NULL && $tid != NULL) {
-		simplenews_unsubscribe_user($mail, $tid, FALSE, 'action');
+	// Inactivate the subscriber, so in future this subscriber will never get subscritption
+	// to other newsletter category
+	if ($mail != NULL) {
+		$subscriber = simplenews_subscriber_load_by_mail($mail);
+    $subscriber->activated = $status;
+    simplenews_subscriber_save($subscriber);
 		
+  //  
 		if ($feedback_type != NULL) {
 			$old_feedback = db_select('simplenews_newsletter', 'sn')
 			->fields('sn', array($feedback_type))
@@ -275,13 +280,21 @@ function simplenews_amazon_ses_receive_sns($json) {
  }
  
  else {
- 	$obj = json_decode($data->Message);
+ 	$obj = json_decode($json->Message);
  	$notificationType = $obj->{'notificationType'};
- 	$bounceType = $obj->{'bounce'}->{'bounceType'};
- 	$problem_email = $obj->{'bounce'}->{'bouncedRecipients'};
- 	$problem_email = $problem_email[0]->{'emailAddress'};
- 	$from_email = $obj->{'mail'}->{'source'};
-  watchdog('problem email', $problem_email); 	
+ 	
+ 	if ($notificationType == 'Bounce') {
+ 		$bounceType = $obj->{'bounce'}->{'bounceType'};
+ 		$problem_email = $obj->{'bounce'}->{'bouncedRecipients'};
+ 		$problem_email = $problem_email[0]->{'emailAddress'};
+ 		$from_email = $obj->{'mail'}->{'source'};
+ 	}
+ 	elseif ($notificationType == 'Complaint') {
+ 		$problem_email = $obj->{'complaint'}->{'complainedRecipients'};
+ 	  $problem_email = $problem_email[0]->{'emailAddress'};
+ 		$from_email = $obj->{'mail'}->{'source'};
+ 	}
+ //	simplenews_amazon_ses_update_feedback($notificationType, $problem_email);
  }
 }
 	
