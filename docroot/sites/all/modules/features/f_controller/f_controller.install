@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * @file
+ * Used to keep track of development and share changes between developers via update hooks.
+ */
+
+/**
+ * Implements hook_update().
+ * Disable the modules that are ON by default but are not required.
+ */
+function f_controller_update_7001() {
+  $return = array();
+  $modules = array('dashboard', 'toolbar', 'shortcut', 'overlay', 'search');
+  module_disable($modules);
+  $return[] = array('success' => TRUE, 'query' => 'Disabled the modules that are ON by default but are not required.');
+  return $return;
+}

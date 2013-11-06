@@ -1,0 +1,69 @@
+<?php 
+
+/**
+ * @file
+ * The installation instructions for the SMTP Authentication Support.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function simplenews_amazon_ses_enable() {
+	$mail_modes = variable_get('mail_system', array('default-system' => 'DefaultMailSystem'));
+	$mail_modes['default-system'] = 'AmazonSesMailSystem';
+	variable_set('mail_system', $mail_modes);
+	
+	// Create kabootr administrator role
+	$role = new stdClass();
+	$role->name = 'Kabootr Administrator';
+	user_role_save($role);
+	// Role to grant the permissions to
+	$kabootr_administrator_role = user_role_load_by_name('Kabootr Administrator');
+	$kabootr_administrator_rid = $kabootr_administrator_role->rid;
+	
+	// Define our 'kabootr_admin' role permissions
+	$kabootr_administrator_permissions = array(
+			'amazon_ses_configuration' => TRUE
+	);
+	// Grant permissions to our 'editor' role
+	user_role_change_permissions($kabootr_administrator_rid, $kabootr_administrator_permissions);
+}
+
+/**
+ * Implements hook_disable().
+ */
+function simplenews_amazon_ses_disable() {
+	$mail_modes = variable_get('mail_system');
+	$mail_modes['default-system'] = 'DefaultMailSystem';
+	variable_set('mail_system', $mail_modes);
+	
+	// Create kabootr user role
+	user_role_delete('Kabootr Administrator');
+}
+
+function simplenews_amazon_ses_update_7001() {
+	$complain_count = array(
+        'description' => 'The count of complain to the newsletter.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      );
+	db_add_field( 'simplenews_newsletter', 'complain_count', $complain_count);
+	
+	$bounces_count = array(
+			'description' => 'The count of bounces to the newsletter.',
+			'type' => 'int',
+			'not null' => TRUE,
+			'default' => 0,
+	);
+	db_add_field( 'simplenews_newsletter', 'bounces_count', $bounces_count);
+	
+	$unsubcriber_count = array(
+			'description' => 'The count of unsubscriber to the newsletter.',
+			'type' => 'int',
+			'not null' => TRUE,
+			'default' => 0,
+	);
+	db_add_field( 'simplenews_newsletter', 'unsubscriber_count', $unsubcriber_count);
+	
+}

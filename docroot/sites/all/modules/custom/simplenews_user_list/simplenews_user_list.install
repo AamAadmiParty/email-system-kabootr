@@ -1,0 +1,75 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the simplenews userlist module
+ */
+
+/**
+ * Implements hook_install
+ */
+function simplenews_user_list_schema() {
+  $schema = array();
+  $schema['simplenews_user_list'] = array(
+      'description' => 'Newsletter users category list data.',
+      'fields' => array(
+          'tid' => array(
+              'description' => 'The category ({simplenews_category}.tid) the users_list subscribers are subscribed to.',
+              'type' => 'int',
+              'not null' => TRUE,
+              'default' => 0
+          ),
+          'user_filters' => array(
+              'description' => 'Contain sql_query which will form uids',
+              'type' => 'blob',
+              'not null' => FALSE,
+              'size' => 'normal',
+              'serialize' => TRUE
+          ),
+      ),
+      
+      'primary key' => array(
+          'tid'
+      ),
+      'foreign key' => array(
+          'tid' => array(
+              'table' => 'simplenews_category',
+              'columns' => array(
+                  'tid' => 'tid'
+              )
+          )
+      )
+  );
+  return $schema;
+}
+
+/**
+ * Implements hook_enable().
+ */
+function simplenews_user_list_enable() {
+	
+	// Create kabootr user role
+	$role = new stdClass();
+	$role->name = 'Kabootr User';
+	user_role_save($role);
+	
+	// Role to grant the permissions to
+	$kabootr_user_role = user_role_load_by_name('Kabootr User');
+	$kabootr_user_rid = $kabootr_user_role->rid;
+	
+	// Define our 'kabootr_admin' role permissions
+	$kabootr_user_permissions = array(
+			'kabootr_recipient_list' => TRUE
+	);
+  // Grant permission
+	user_role_change_permissions($kabootr_user_rid, $kabootr_user_permissions);
+}
+
+/**
+ * Implements hook_disable().
+ */
+function simplenews_user_list_disable() {
+	// Create kabootr user role
+	user_role_delete('Kabootr User');
+}
+
+
