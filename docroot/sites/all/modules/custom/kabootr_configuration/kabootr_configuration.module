@@ -2,7 +2,7 @@
 
 /**
  * @file
- *   kabootr_configuration.module
+ * kabootr_configuration.module
  *
  * @author
  *   Gaurav Goyal
@@ -12,13 +12,16 @@
  */
 
 /**
- * @desc It disables user login block.
- * @param  [type] $blocks
- *         All the blocks which are enabled.
- * @param  $theme
- * @param  $code_blocks
+ * It disables user login block.
+ *
+ * @param [type] $blocks
+ *   All the blocks which are enabled.
+ *
+ * @param [type] $theme
+ *
+ * @param [type] $code_blocks
  */
 function kabootr_configuration_block_info_alter(&$blocks, $theme, $code_blocks) {
-  // disable user login blocks
+  // Disable user login blocks.
   $blocks['user']['login']['status'] = 0;
 }
