@@ -245,6 +245,7 @@ function simplenews_amazon_ses_update_feedback($feedback_type = '', $mail = '', 
 	// to other newsletter category
 	if ($mail != NULL) {
 		$subscriber = simplenews_subscriber_load_by_mail($mail);
+		$status = 0;
     $subscriber->activated = $status;
     simplenews_subscriber_save($subscriber);
 		
