@@ -77,9 +77,9 @@ function f_kabootr_reports_views_default_views() {
   $handler->display->display_options['fields']['sent_subscriber_count']['field'] = 'sent_subscriber_count';
   $handler->display->display_options['fields']['sent_subscriber_count']['label'] = 'Kabootr Sent Count';
   /* Field: Simplenews issue: Kabootr Bounce Count */
-  $handler->display->display_options['fields']['bounces_count']['id'] = 'bounces_count';
-  $handler->display->display_options['fields']['bounces_count']['table'] = 'simplenews_newsletter';
-  $handler->display->display_options['fields']['bounces_count']['field'] = 'bounces_count';
+  $handler->display->display_options['fields']['bounce_count']['id'] = 'bounce_count';
+  $handler->display->display_options['fields']['bounce_count']['table'] = 'simplenews_newsletter';
+  $handler->display->display_options['fields']['bounce_count']['field'] = 'bounce_count';
   /* Field: Simplenews issue: Kabootr Spam Count */
   $handler->display->display_options['fields']['complain_count']['id'] = 'complain_count';
   $handler->display->display_options['fields']['complain_count']['table'] = 'simplenews_newsletter';
@@ -108,8 +108,8 @@ function f_kabootr_reports_views_default_views() {
     'simplenews' => 'simplenews',
   );
 
-  /* Display: Page */
-  $handler = $view->new_display('page', 'Page', 'page');
+  /* Display: Kabootr Reports */
+  $handler = $view->new_display('page', 'Kabootr Reports', 'page');
   $handler->display->display_options['path'] = 'kabootr/reports';
   $export['kabootr_reports'] = $view;
 
