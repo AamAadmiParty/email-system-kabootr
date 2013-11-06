@@ -10,3 +10,15 @@
  * @desc
  *   This module contains the configuration related settings for the kabootr.
  */
+
+/**
+ * @desc It disables user login block.
+ * @param  [type] $blocks
+ *         All the blocks which are enabled.
+ * @param  $theme
+ * @param  $code_blocks
+ */
+function kabootr_configuration_block_info_alter(&$blocks, $theme, $code_blocks) {
+  // disable user login blocks
+  $blocks['user']['login']['status'] = 0;
+}
