@@ -19,7 +19,7 @@ function kabootr_notification_reports_views_data_alter(&$data) {
   // if simplenews_newsletter table is integrated with views
   if (isset($data['simplenews_newsletter'])) {
     // add kabootr bounce count column
-    $data['simplenews_newsletter']['bounces_count'] = array(
+    $data['simplenews_newsletter']['bounce_count'] = array(
       'title' => t('Kabootr Bounce Count'),
       'help' => t('Shows the Kabootr Email Bounce Count'),
       'field' => array(
