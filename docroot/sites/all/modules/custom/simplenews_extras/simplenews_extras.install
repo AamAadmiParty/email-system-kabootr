@@ -1,0 +1,35 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the simplenews userlist module
+ */
+
+/**
+ * Implements hook_install
+ */
+function simplenews_extras_schema() {
+	$schema = array();
+	$schema['kabootr_sent_mail'] = array(
+			'description' => 'Contain sent mail status to Amazon SES',
+			'fields' => array(
+					'message_id' => array(
+							'description' => 'The unique message identifier returned from the SendEmail action.',
+							'type' => 'varchar',
+							'length' => 200,
+							'not null' => TRUE,
+							'default' => '0'
+					),
+					'nid' => array(
+							'description' => 'Node id of send newsletter',
+							'type' => 'varchar',
+							'length' => 200,
+							'not null' => TRUE,
+					),
+			),
+
+			'primary key' => array(
+					'message_id'
+			),
+	);
+	return $schema;
+}

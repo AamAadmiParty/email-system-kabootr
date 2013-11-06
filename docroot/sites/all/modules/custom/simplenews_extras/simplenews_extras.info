@@ -1,0 +1,6 @@
+name = Simplenewsletter Extra
+description = Modify contrib simplenews module
+core = 7.x
+package = kabootr
+version = 7.x-1.0
+project = simplenews_extras

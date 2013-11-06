@@ -1,0 +1,39 @@
+<?php 
+
+/**
+ * todo
+ */
+function simplenews_extras_update_kabootr_mail_sent($newsletter_nid) {
+	if (isset($_SESSION['amazon_ses']['message_id'])) {
+		$data['message_id'] =  $_SESSION['amazon_ses']['message_id'];
+		unset($_SESSION['amazon_ses']['message_id']);
+		$data['nid'] = $newsletter_nid;
+		kabootr_mail_sent_insert($data);
+	}
+}
+
+/**
+ * todo
+ */
+function kabootr_mail_sent_insert($data) {
+	db_insert('kabootr_sent_mail')
+	->fields(array(
+			'message_id' => $data['message_id'],
+			'nid' => $data['nid']
+			)
+		)
+	->execute();	
+}
+
+/**
+ * Load Kabootr mail sent by Message id
+ */
+function kabootr_mail_sent_load($message_id) {
+	$kabootr_sent_mail = db_select('kabootr_sent_mail', 'ksm')
+	->fields('ksm', array('nid'))
+	->condition('message_id', $message_id, '=')
+	->execute()
+	->fetchAssoc();
+	
+	return $kabootr_sent_mail;
+}
