@@ -1,0 +1,25 @@
+<?php
+/**
+ * @file
+ * The module system allows to extract the username from user email
+ */
+
+/**
+ * Implements hook_feeds_processor_targets_alter().
+ * defines a callback function for target name
+ */
+function feeds_email_registration_feeds_processor_targets_alter(&$targets, $entity_type, $bundle_name) {
+  if ($entity_type == 'user' && $bundle_name == 'user') {
+    $targets['name']['callback'] = 'tamper_username_email';
+  }
+}
+
+/**
+ * callback function for name
+ * this function extracts the username from email and then map to username
+ */
+function tamper_username_email($source, $entity, $target, $value) {
+  $new_name = preg_replace('/@.*$/', '', $value);
+  $new_name = email_registration_unique_username($new_name);
+  $entity->$target = $new_name;
+}

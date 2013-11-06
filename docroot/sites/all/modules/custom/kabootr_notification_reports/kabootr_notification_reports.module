@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * @file
+ * kabootr_notification_reports.module file.
+ * @author
+ * Gaurav Goyal
+ */
+
+/**
+ * @desc contains the code to show the reports of kabootr notification
+ */
+
+/**
+ * Implements hook_views_api().
+ */
+function kabootr_notification_reports_views_api() {
+  return array(
+    'api' => 3, // version of the views we are using
+    'path' => drupal_get_path('module', 'kabootr_notification_reports') . '/includes/views',
+    );
+}

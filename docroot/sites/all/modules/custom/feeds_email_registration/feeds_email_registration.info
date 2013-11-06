@@ -1,0 +1,7 @@
+name=Feeds Email Registration
+files[]=feeds_email_registration.module
+description = "Extract username from email address while using Feeds to import users"
+core=7.x
+dependencies[]=feeds
+dependencies[]=email_registration
+package = Innoraft

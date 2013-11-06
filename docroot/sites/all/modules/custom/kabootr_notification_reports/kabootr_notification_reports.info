@@ -1,0 +1,6 @@
+name =  Kabootr Notification Reports
+description = Create Reports For Kabootr
+files[] = kabootr_notification_reports.module
+dependencies[] = simplenews
+core = 7.x
+package = kabootr

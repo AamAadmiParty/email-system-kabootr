@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 
 /**
@@ -7,6 +7,7 @@
 * Used by drupal core system
 */
 
+require_once 'classes/amazonses.class.php';
 $path = drupal_get_path('module', 'simplenews_amazon_ses');
 require_once $path . '/vendor/autoload.php';
 use \Guzzle\Http\Client,
@@ -21,7 +22,23 @@ use Guzzle\Cache\NullCacheAdapter;
  * Create system which will send mail using amazon ses api.
  */
 class AmazonSesMailSystem extends DefaultMailSystem {
-	
+
+  /**
+   * Concatenate and wrap the e-mail body for plain-text mails.
+   *
+   * @param $message
+   *   A message array, as described in hook_mail_alter().
+   *
+   * @return
+   *   The formatted $message.
+   */
+  public function format(array $message) {
+    // Join the body array into one string.
+    $message['body'] = implode("\n\n", $message['body']);
+    $message['body'] = drupal_wrap_mail($message['body']);
+    return $message;
+  }
+
 	/**
 	 * Send an e-mail message, using Drupal variables and default settings.
 	 *
@@ -52,41 +69,41 @@ class AmazonSesMailSystem extends DefaultMailSystem {
  * After sending request, it parse the http response returned by Amazon API call
  * @param $qyeryAction Name of Action which is to be called,
  *        $actionParameter Additonal parameter needed to complete the call Amazon SES API
- * @return Parsed http response, used to display to user or to take system appropriate aciton 
+ * @return Parsed http response, used to display to user or to take system appropriate aciton
  */
 function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
 	
 	require_once 'classes/amazonses.class.php';
 	
   $result = NULL;
-  
+
   if ($queryAction === 'SendEmail') {
     $queryEndPoint = SimpleEmailService::queryEndPoint;
     $request_array = array();
-    
+
     // Create batch using BatchBuilder
     $batch = BatchBuilder::factory()
     ->transferRequests(40)
     ->autoFlushAt(1)
     ->build();
-      
+
       // Create a client and provide a base URL
     $client = new Client($queryEndPoint);
     foreach ($actionParameters as $actionParameter) {
       $simpleEmailService = new SimpleEmailService();
       $simpleEmailService->createQueryRequest($queryAction, $actionParameter);
-      
+
       $request = $client->post('', $simpleEmailService->getRequestHeaders(), $simpleEmailService->getRequestParameter(), $options = array());
       $request->getEventDispatcher()->addListener('request.success', function (Event $e) {
         $queryAction = (string) $e['request']->getHeader('Action');
         $response_xml = (string) $e['response']->getBody();
         $http_response_xml = simplexml_load_string($response_xml);
-        
+
         // Reterieve query action name from http response object
         $queryActionResult = key((array) $http_response_xml);
         $actionResponse = $http_response_xml->$queryActionResult;
         $response_code = $e['response']->getStatusCode();
-      
+
         // Create log file
         if ($response_code === 200) {
           $string = $e['request']->getPostFields()->__toString();
@@ -97,7 +114,7 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
           $request_id = (string) $http_response_xml->ResponseMetadata->RequestId;
           $message = "[{$mail_sending_time}] [Sending Mail Success] [Request Id : {$request_id}], [Message Id : {$message_id}] {$to_address}\n";
 
-          
+
           // Write the contents to the file,
           // using the FILE_APPEND flag to append the content to the end of the file
           // and the LOCK_EX flag to prevent anyone else writing to the file at the same time
@@ -105,7 +122,7 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
           file_put_contents($file, $message, FILE_APPEND | LOCK_EX);
         }
       });
-      
+
       try {
         $batch->add($request);
         $result = KABOOTR_MAIL_SENT;
@@ -115,11 +132,11 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
         $request_string = $batch_obj[0]->getPostFields()->__toString();
         $to_address = simplenews_amazon_ses_get_post_field($request_string, 'Destination.ToAddresses.member.1');
         $to_address = urldecode($to_address);
-        
+
         $mail_sending_time = date('l jS \of F Y h:i:s A');
         $request_id = '';
         if ($batch_obj[0]->getResponse() == NULL) {
-        	$error_message = t('Request to <b>!action</b> action of Amazon SES API call has failed, 
+        	$error_message = t('Request to <b>!action</b> action of Amazon SES API call has failed,
                     please check your network connection or try after some time.', array(
               '!action' => "SendEmail"
           ));
@@ -132,7 +149,7 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
           $request_id = (string) $http_response_xml->RequestId;
         }
         $message = "[{$mail_sending_time}] [Sending Email Failed] [Request Id : {$request_id}], [Error Message: {$error_message}] {$to_address}\n";
- 
+
         $file = 'mail.log';
         // Write the contents to the file,
         // using the FILE_APPEND flag to append the content to the end of the file
@@ -140,13 +157,13 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
         file_put_contents($file, $message, FILE_APPEND | LOCK_EX);
       }
     }
-  	  
+
   }
   else {
     $simpleEmailService = new SimpleEmailService();
     $simpleEmailService->createQueryRequest($queryAction, $actionParameters);
     $queryEndPoint = SimpleEmailService::queryEndPoint;
-    
+
     // Create a client and provide a base URL
     $client = new Client($queryEndPoint);
     $request = $client->post('', $simpleEmailService->getRequestHeaders(), $simpleEmailService->getRequestParameter(), $options = array());
@@ -154,7 +171,7 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       $response = $request->send();
       $response_xml = (string) $response->getBody();
       $http_response_xml = simplexml_load_string($response_xml);
-     
+
       // If there is error in response
       if (isset($http_response_xml->Error)) {
         $queryActionResult = 'Error';
@@ -184,7 +201,7 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
    foreach ($arrayOfTransferredRequests as $v) {
      dpm($v->getResponse()->getInfo()['total_time']);
    } */
-  
+
  /*  $http_req = new HttpRequest($queryEndPoint,HTTP_METH_POST);
   $http_req->setHeaders($simpleEmailService->getRequestHeaders());
   $http_req->setPostFields($simpleEmailService->getRequestParameter());
@@ -204,18 +221,18 @@ function simplenews_amazon_ses_send_request($queryAction, $actionParameters) {
       $actionResponse = $http_response_xml->$queryActionResult;
     }
     $result = $simpleEmailService->getQueryResponse($queryAction, $actionResponse, $http_req->getResponseCode());
-  } 
+  }
   catch ( HttpException $ex ) {
     $result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
   }
- */  
+ */
   return $result;
 }
 
 /**
  * Handle the bounced and compaint mails,
  * take the appropriate action like unsubcribe or delete completely form database
- * 
+ *
  */
 function simplenews_amazon_ses_control_sending_mail() {
   require 'classes/amazonsns.class.php';
@@ -240,7 +257,7 @@ function simplenews_amazon_ses_get_post_field($field_data, $field_name = NULL) {
     $post_field = explode('=', $value);
     $post_fields[$post_field[0]] = $post_field[1];
   }
-  
+
   if ($field_name != NULL) {
     if (isset($post_fields[$field_name])) {
       return $post_fields[$field_name];
@@ -249,7 +266,7 @@ function simplenews_amazon_ses_get_post_field($field_data, $field_name = NULL) {
       return '';
     }
   }
-  
+
   else {
     return $post_fields;
   }
@@ -300,5 +317,4 @@ function simplenews_amazon_ses_send_request_sns($queryAction, $actionParameters)
 			$result['status'] = KABOOTR_AMAZON_REQUEST_EXCEPTION;
 		}
 	}
-	
 }
