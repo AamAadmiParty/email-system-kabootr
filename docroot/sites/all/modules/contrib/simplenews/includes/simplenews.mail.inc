@@ -239,6 +239,9 @@ function simplenews_mail_spool($limit = SIMPLENEWS_UNLIMITED, array $conditions 
       foreach ($spool->getProcessed() as $msid => $row) {
         $row_result = isset($row->result) ? $row->result : $result;
         simplenews_update_spool(array($msid), $row_result);
+        
+        module_invoke_all('update_kabootr_mail_sent',$row->actual_nid);
+        
         if ($row_result['status'] == SIMPLENEWS_SPOOL_DONE) {
           $count_success++;
           if (!isset($sent[$row->actual_nid])) {
