@@ -2,6 +2,7 @@ name = Recipient List
 description = Create importer for importing users to site
 core = 7.x
 package = Features
+project = f_recipient_list
 dependencies[] = ctools
 dependencies[] = feeds
 dependencies[] = feeds_ui
