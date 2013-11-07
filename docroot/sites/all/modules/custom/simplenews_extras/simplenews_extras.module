@@ -1,7 +1,12 @@
 <?php 
+/**
+ * @file
+ * Perform some additional action that will triggedred from simplenews contrib module
+ */
 
 /**
- * todo
+ * Implenment hook_update_kabootr_mail_sent defined by simplenews module.
+ * Called after each mail sent to amazon ses and save the messageId and newsletter nid.
  */
 function simplenews_extras_update_kabootr_mail_sent($newsletter_nid) {
 	if (isset($_SESSION['amazon_ses']['message_id'])) {
@@ -13,7 +18,7 @@ function simplenews_extras_update_kabootr_mail_sent($newsletter_nid) {
 }
 
 /**
- * todo
+ * Save the messageId and newsletter into DB
  */
 function kabootr_mail_sent_insert($data) {
 	db_insert('kabootr_sent_mail')
@@ -37,3 +42,11 @@ function kabootr_mail_sent_load($message_id) {
 	
 	return $kabootr_sent_mail;
 }
+
+/**
+ * Implements hook_simplenews_unsubscribe_user defined by simplenews module
+ */
+function simplenews_extras_simplenews_unsubscribe_user($subscriber, $newsletter_tid) {
+	$feedback_type = 'Unsubcribe';
+	simplenews_amazon_ses_update_feedback($feedback_type, $subscriber->mail, '', $newsletter_tid);
+}	

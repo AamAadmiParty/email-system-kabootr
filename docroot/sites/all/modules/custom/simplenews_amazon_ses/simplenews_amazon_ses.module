@@ -233,47 +233,62 @@ function verify_email_identity_amazon($element, &$form_state) {
 }
 
 /**
- * Save current feedback status of mail sent
+ * Inactivate the subscriber when mail get spam or bounces. But not when user get unsubscribed
  * @param string $feedback_type Must pass of name of column
  * @param string $mail User's mail id, who has to unsubsribed
  * @param stirng $tid Newsletter Cateogry
  * @param string $nid Newsletter Node id
 */
-function simplenews_amazon_ses_update_feedback($feedback_type = '', $mail = '', $message_id = '') {
+function simplenews_amazon_ses_update_feedback($feedback_type = '', $mail = '', $message_id = '', $newsletter_tid = '') {
 	
 	// Inactivate the subscriber, so in future this subscriber will never get subscritption
 	// to other newsletter category
-	if ($mail != '') {
+	if ($mail != '' && $newsletter_tid == '') {
 		$subscriber = simplenews_subscriber_load_by_mail($mail);
 		$status = 0;
     $subscriber->activated = $status;
     simplenews_subscriber_save($subscriber);
-		
-		if ($feedback_type != '') {
-			
+	}
+
+	if ($feedback_type != '') {
+
+		if ($message_id != '') {
 			$nid = kabootr_mail_sent_load($message_id);
-			
-			switch ($feedback_type) {
-				case 'Bounce':
-					$feedback_type = 'bounce_count';
-					break;
-				case 'Complaint':
-					$feedback_type = 'complain_count';
-					break;
-			}
-			$old_feedback = db_select('simplenews_newsletter', 'sn')
-			->fields('sn', array($feedback_type))
-			->condition('nid', $nid, '=')
-			->execute()
-			->fetchAssoc();
-			$new_feedback = ((int) $old_feedback[$feedback_type]) + 1;
-			db_update('simplenews_newsletter')
-			->fields(array(
-					$feedback_type => $new_feedback,
-			))
-			->condition('nid', $nid, '=')
-			->execute();
 		}
+			
+		switch ($feedback_type) {
+			case 'Bounce':
+				$feedback_type = 'bounce_count';
+				break;
+			case 'Complaint':
+				$feedback_type = 'complain_count';
+				break;
+			case 'Unsubcribe':
+				$feedback_type = 'unsubscriber_count';
+				break;
+		}
+		$old_feedback = db_select('simplenews_newsletter', 'sn')
+		->fields('sn', array($feedback_type))
+		->condition('nid', $nid, '=')
+		->execute()
+		->fetchAssoc();
+		$new_feedback = ((int) $old_feedback[$feedback_type]) + 1;
+		
+		// Decide all node belongs to newsletter category has to be updated or only one
+		$newsletter_or = db_or();
+		if ($newsletter_tid != '') {
+			$newsletter_or->condition('tid', $newsletter_tid);
+		}
+		else {
+			$newsletter_or->condition('nid', $nid);
+		}
+		
+		db_update('simplenews_newsletter')
+		->fields(array(
+				$feedback_type => $new_feedback,
+		))
+		->condition($newsletter_or)
+		->execute();
 	}
 }
 
