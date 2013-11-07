@@ -46,7 +46,7 @@ function kabootr_mail_sent_load($message_id) {
 /**
  * Implements hook_simplenews_unsubscribe_user defined by simplenews module
  */
-function simplenews_extras_simplenews_unsubscribe_user($subscriber, $newsletter_tid) {
+function simplenews_extras_simplenews_unsubscribe_user($subscriber, $newsletter) {
 	$feedback_type = 'Unsubcribe';
-	simplenews_amazon_ses_update_feedback($feedback_type, $subscriber->mail, '', $newsletter_tid);
+	simplenews_amazon_ses_update_feedback($feedback_type, $subscriber->mail, '', $newsletter->tid);
 }	
