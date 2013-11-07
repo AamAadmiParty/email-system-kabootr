@@ -267,12 +267,6 @@ function simplenews_amazon_ses_update_feedback($feedback_type = '', $mail = '', 
 				$feedback_type = 'unsubscriber_count';
 				break;
 		}
-		$old_feedback = db_select('simplenews_newsletter', 'sn')
-		->fields('sn', array($feedback_type))
-		->condition('nid', $nid, '=')
-		->execute()
-		->fetchAssoc();
-		$new_feedback = ((int) $old_feedback[$feedback_type]) + 1;
 		
 		// Decide all node belongs to newsletter category has to be updated or only one
 		$newsletter_or = db_or();
@@ -282,6 +276,16 @@ function simplenews_amazon_ses_update_feedback($feedback_type = '', $mail = '', 
 		else {
 			$newsletter_or->condition('nid', $nid);
 		}
+		
+		$old_feedback = db_select('simplenews_newsletter', 'sn')
+		->fields('sn', array($feedback_type))
+		->condition($newsletter_or)
+		->range(0,1)
+		->execute()
+		->fetchAssoc();
+		
+		$new_feedback = ((int) $old_feedback[$feedback_type]) + 1;
+		
 		
 		db_update('simplenews_newsletter')
 		->fields(array(
