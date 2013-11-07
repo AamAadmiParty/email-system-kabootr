@@ -1,0 +1,5 @@
+name = Kabootr Configuration
+description = contains the configuration settings required for kabootr
+core = 7.x
+package = kabootr
+files[] = kabootr_configuration.module
