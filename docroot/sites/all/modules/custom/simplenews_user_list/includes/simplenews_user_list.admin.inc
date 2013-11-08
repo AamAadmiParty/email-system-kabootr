@@ -151,6 +151,23 @@ function simplenews_user_list_create_user_filters($newsletter_tid = NULL) {
  * It creates the user subcription list for created newsletter category
  */
 function simplenews_user_list_admin_category_form_submit($form, &$form_state) {
+
+// Set batch for subscribing users to newsletter
+
+  $batch = array(
+    'operations' => array(
+      array('simplenews_user_list_subscribe_user', array($form, $form_state)),
+    ),
+    'title' => t('Creating Subscription List'),
+    'file' => drupal_get_path('module', 'simplenews_user_list') . '/includes/simplenews_user_list.admin.inc',
+    );
+    batch_set($batch);
+}
+
+/**
+ * It creates the user subcription list for created newsletter category
+ */
+function simplenews_user_list_subscribe_user($form, $form_state) {
   $subcribe_uids = '';
   $user_filter_flag = 0; // Set flag to 0, User filters is not selected
   $newsletter_tid = $form_state['values']['tid']; // Always avaliable, this submit handler will be called after main submit handler
